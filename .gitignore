@@ -4,6 +4,7 @@
 *.xls
 *.tsv
 *.parquet
+*.json
 
 # Ignore image files and figures
 *.png
@@ -40,6 +41,9 @@ venv/
 ENV/
 env/
 .venv/
+
+# Data directory
+data/
 
 # IDE, scratch and OS
 generate_data.py
