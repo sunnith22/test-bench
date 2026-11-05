@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toyota TNGA 2.0L Engine Test Bench - Monthly Performance Dashboard</title>
+  <!-- Chart.js CDN with fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --toyota-red: #d9381e;
+      --accent-blue: #1e40af;
+      --accent-green: #059669;
+      --accent-purple: #7c3aed;
+      --accent-orange: #ea580c;
+      --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: white;
+      padding: 24px 32px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #dcfce7; color: #166534; }
+
+    .header-meta {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 6px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .header-meta span strong {
+      color: #e2e8f0;
+    }
+
+    /* Controls Bar */
+    .controls-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      box-shadow: var(--card-shadow);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+      flex: 1;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .select-custom {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border-color);
+      background-color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .select-custom:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-outline {
+      background: white;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: #f1f5f9;
+    }
+
+    /* KPI Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .kpi-card.c-red::before { background: var(--toyota-red); }
+    .kpi-card.c-blue::before { background: var(--accent-blue); }
+    .kpi-card.c-green::before { background: var(--accent-green); }
+    .kpi-card.c-purple::before { background: var(--accent-purple); }
+    .kpi-card.c-orange::before { background: var(--accent-orange); }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Chart Containers */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .chart-title-area h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .chart-title-area p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chart-viewport {
+      position: relative;
+      height: 480px;
+      width: 100%;
+    }
+
+    /* Grid of Subsystem Charts */
+    .subsystem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .subsystem-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .subsystem-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subsystem-card p {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .subsystem-viewport {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    /* Data Table Section */
+    .table-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 40px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .table-responsive {
+      max-height: 440px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #1e293b;
+      color: white;
+      padding: 10px 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    tr:hover {
+      background-color: #f1f5f9;
+    }
+
+    td:first-child, th:first-child {
+      text-align: center;
+      position: sticky;
+      left: 0;
+      background: inherit;
+    }
+
+    th:first-child {
+      background: #1e293b;
+      z-index: 20;
+    }
+
+    .text-center { text-align: center; }
+    .text-left { text-align: left; }
+    .font-bold { font-weight: 700; }
+    .val-highlight { color: #002060; font-weight: 700; }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 20px 0;
+      border-top: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-title">
+        <h1>
+          <span>🏎️ Toyota TNGA 2.0L Engine Test Bench</span>
+          <span class="badge badge-red">Cell TC-1</span>
+          <span class="badge badge-blue">WOT Full Load</span>
+        </h1>
+        <div class="header-meta">
+          <span><strong>Engine Variant:</strong> 2.0L-CV-(124E)</span>
+          <span><strong>Engine Code:</strong> 200</span>
+          <span><strong>Engine S/N:</strong> na1234</span>
+          <span><strong>Displacement:</strong> 1,987 cc</span>
+          <span><strong>Oil:</strong> 0W-16</span>
+          <span><strong>Fuel:</strong> Petrol</span>
+          <span><strong>Tester:</strong> Naveen</span>
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-outline" onclick="exportCurrentTableToCSV()">⬇️ Export CSV</button>
+      </div>
+    </header>
+
+    <!-- Controls Panel with Dropdown Filters -->
+    <div class="controls-panel">
+      <div class="control-group">
+        <label for="runSelect">📅 Filter by Test Run / Date:</label>
+        <select id="runSelect" class="select-custom" onchange="onFilterChange()">
+          <option value="54" selected>Run 54 (2025-06-24) - Cylinder block new die [Current]</option>
+          <option value="all">🌟 ALL RUNS OVERLAY (Month Comparison across RPM)</option>
+          <option value="51">Run 51 (2025-06-05) - Baseline Break-in</option>
+          <option value="52">Run 52 (2025-06-12) - VVT Optimization</option>
+          <option value="53">Run 53 (2025-06-18) - Thermal Durability</option>
+          <option value="55">Run 55 (2025-06-30) - Quality Sign-off</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="paramSelect">📊 Filter Parameter to Plot vs RPM:</label>
+        <select id="paramSelect" class="select-custom" onchange="onFilterChange()">
+          <option value="dyno_master" selected>⭐ Master Engine Curve: RPM vs Power & Torque (Dual Axis)</option>
+          <option value="power">RPM vs Power & Corrected Power (kW)</option>
+          <option value="torque">RPM vs Dyno Torque & Corrected Torque (N·m)</option>
+          <option value="bsfc">RPM vs Fuel Consumption Ratio / BSFC (g/kW·h)</option>
+          <option value="fuel_consumption">RPM vs Fuel Flow Rate (g/s)</option>
+          <option value="water_temp">RPM vs Water Temp IN & OUT (℃)</option>
+          <option value="oil_system">RPM vs Oil Temp (℃) & Oil Press (kPa)</option>
+          <option value="afr">RPM vs Air Fuel Ratio (AFR / λ)</option>
+          <option value="ex_gas_temp">RPM vs Exhaust Gas Temp (℃)</option>
+          <option value="back_press">RPM vs Exhaust Back Pressure (kPa)</option>
+          <option value="air_system">RPM vs Intake Air Temp & Press</option>
+          <option value="pressures">RPM vs Fuel, Crank & Atmospheric Press (kPa)</option>
+          <option value="atm_press">RPM vs Atmospheric Barometric Pressure (kPa)</option>
+        </select>
+      </div>
+
+      <div class="control-group" style="flex: 0 0 auto;">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="resetViews()">🔄 Reset Zoom / Filters</button>
+      </div>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="kpi-grid" id="kpiContainer">
+      <div class="kpi-card c-red">
+        <div class="kpi-title">Peak Corrected Power</div>
+        <div class="kpi-value" id="kpiPower">125.2 kW</div>
+        <div class="kpi-sub" id="kpiPowerRpm">@ 6,600 RPM (170.2 PS)</div>
+      </div>
+      <div class="kpi-card c-blue">
+        <div class="kpi-title">Peak Corrected Torque</div>
+        <div class="kpi-value" id="kpiTorque">209.2 N·m</div>
+        <div class="kpi-sub" id="kpiTorqueRpm">@ 4,800 RPM</div>
+      </div>
+      <div class="kpi-card c-green">
+        <div class="kpi-title">Best BSFC (Sweet Spot)</div>
+        <div class="kpi-value" id="kpiBsfc">216.2 g/kW·h</div>
+        <div class="kpi-sub" id="kpiBsfcRpm">@ 2,800 RPM (40% ηth)</div>
+      </div>
+      <div class="kpi-card c-purple">
+        <div class="kpi-title">Max Exhaust Gas Temp</div>
+        <div class="kpi-value" id="kpiEgt">860 ℃</div>
+        <div class="kpi-sub">@ 6,700 RPM WOT</div>
+      </div>
+      <div class="kpi-card c-orange">
+        <div class="kpi-title">ISO Correction Factor (k)</div>
+        <div class="kpi-value">1.1484</div>
+        <div class="kpi-sub">Atm: 90.9 kPa | Dry: 26.3℃</div>
+      </div>
+    </div>
+
+    <!-- Main Dynamic Chart Viewport -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title-area">
+          <h2 id="mainChartTitle">Master Engine Curve: RPM vs Power & Torque</h2>
+          <p id="mainChartSub">Full load (100% throttle) response across 1,200 to 6,700 RPM</p>
+        </div>
+        <div>
+          <span class="badge badge-green" id="chartFilterBadge">Run 54 (2025-06-24)</span>
+        </div>
+      </div>
+      <div class="chart-viewport">
+        <canvas id="mainChartCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Monthly Trend Progression Over Time -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title-area">
+          <h2>📅 Overall Month Trend Progression (June 2025 Test Campaign)</h2>
+          <p>Chronological tracking of Peak Power, Peak Torque, Best Fuel Economy & Thermal Stress across all test runs</p>
+        </div>
+        <span class="badge badge-blue">Month Trend Analysis</span>
+      </div>
+      <div class="chart-viewport" style="height: 340px;">
+        <canvas id="monthTrendCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Multi-Panel Subsystem Grid -->
+    <div class="subsystem-grid">
+      <div class="subsystem-card">
+        <h3>🔥 Thermal Dynamics: Coolant & Oil vs RPM</h3>
+        <p>Inlet / outlet coolant temperatures and engine sump oil temperature</p>
+        <div class="subsystem-viewport">
+          <canvas id="subThermalCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="subsystem-card">
+        <h3>💧 Lubrication & Fuel Pressures vs RPM</h3>
+        <p>Variable oil pump relief regulation and low-pressure fuel rail supply</p>
+        <div class="subsystem-viewport">
+          <canvas id="subFluidPressCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="subsystem-card">
+        <h3>💨 Combustion, AFR & Exhaust Back Pressure vs RPM</h3>
+        <p>Air-Fuel Ratio enrichment and manifold exhaust back pressure rise</p>
+        <div class="subsystem-viewport">
+          <canvas id="subCombustionCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="subsystem-card">
+        <h3>🌦️ Test Cell Atmospheric & Intake Pressures vs RPM</h3>
+        <p>Barometric ambient cell pressure, intake depression & blow-by crankcase pressure</p>
+        <div class="subsystem-viewport">
+          <canvas id="subAtmCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Raw Corrected Data Table -->
+    <div class="table-section">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2>📋 Complete Corrected Engine Dyno Data Table</h2>
+          <p style="font-size:13px; color:var(--text-muted);">
+            All measured test bench channels verified against thermodynamic and mechanical powertrain equations
+          </p>
+        </div>
+        <input type="text" id="tableSearch" placeholder="🔍 Search RPM or values..." 
+               style="padding:8px 14px; border:1px solid var(--border-color); border-radius:8px; font-size:13px;"
+               onkeyup="filterTable()">
+      </div>
+      <div class="table-responsive">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>Speed (rpm)</th>
+              <th>Acc (%)</th>
+              <th>k (-)</th>
+              <th>Power (kW)</th>
+              <th>Corr Power (kW)</th>
+              <th>Dyno Torque (N·m)</th>
+              <th>Corr Torque (N·m)</th>
+              <th>BSFC (g/kW·h)</th>
+              <th>Fuel Rate (g/s)</th>
+              <th>Water In (℃)</th>
+              <th>Water Out (℃)</th>
+              <th>Oil Temp (℃)</th>
+              <th>Oil Press (kPa)</th>
+              <th>AFR (-)</th>
+              <th>In Air Press (kPa)</th>
+              <th>In Air Temp (℃)</th>
+              <th>Ex-gas Temp (℃)</th>
+              <th>Back Press (kPa)</th>
+              <th>TD (℃)</th>
+              <th>TW (℃)</th>
+              <th>Fuel Press (kPa)</th>
+              <th>Crank Press (kPa)</th>
+              <th>Atm Press (kPa)</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Injected via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      Engine Test Cell TC-1 Dynamometer System | Toyota TNGA 2.0L Engine Testing Campaign (June 2025)
+    </footer>
+  </div>
+
+  <script>
+    // Embedded Data
+    const rawData = {"rpms": [1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400, 4500, 4600, 4700, 4800, 4900, 5000, 5100, 5500, 5900, 6200, 6300, 6400, 6500, 6600, 6700], "runs_meta": [{"date": "2025-06-05", "ref": 51, "name": "Run 51 (Break-in Baseline)", "t_mod": -2.8, "bsfc_mod": 3.2, "atm": 91.2, "temp": 25.5}, {"date": "2025-06-12", "ref": 52, "name": "Run 52 (VVT Optimization)", "t_mod": -1.2, "bsfc_mod": 1.4, "atm": 91.0, "temp": 25.8}, {"date": "2025-06-18", "ref": 53, "name": "Run 53 (Thermal Durability)", "t_mod": 0.4, "bsfc_mod": -0.7, "atm": 90.7, "temp": 26.1}, {"date": "2025-06-24", "ref": 54, "name": "Run 54 (Cylinder block new die)", "t_mod": 0.0, "bsfc_mod": 0.0, "atm": 90.9, "temp": 26.3}, {"date": "2025-06-30", "ref": 55, "name": "Run 55 (Final Sign-off)", "t_mod": 1.3, "bsfc_mod": -1.6, "atm": 90.8, "temp": 26.5}], "month_kpis": [{"date": "2025-06-05", "ref": 51, "name": "Run 51 (Break-in Baseline)", "peak_power_kw": 123.2, "peak_torque_nm": 206.4, "best_bsfc_gkwh": 219.4, "max_egt_c": 860.0, "avg_oil_press_kpa": 397.7, "atm_press_kpa": 91.2}, {"date": "2025-06-12", "ref": 52, "name": "Run 52 (VVT Optimization)", "peak_power_kw": 124.3, "peak_torque_nm": 208.0, "best_bsfc_gkwh": 217.6, "max_egt_c": 860.0, "avg_oil_press_kpa": 397.7, "atm_press_kpa": 91.0}, {"date": "2025-06-18", "ref": 53, "name": "Run 53 (Thermal Durability)", "peak_power_kw": 125.5, "peak_torque_nm": 209.6, "best_bsfc_gkwh": 215.5, "max_egt_c": 860.0, "avg_oil_press_kpa": 397.7, "atm_press_kpa": 90.7}, {"date": "2025-06-24", "ref": 54, "name": "Run 54 (Cylinder block new die)", "peak_power_kw": 125.2, "peak_torque_nm": 209.2, "best_bsfc_gkwh": 216.2, "max_egt_c": 860.0, "avg_oil_press_kpa": 397.7, "atm_press_kpa": 90.9}, {"date": "2025-06-30", "ref": 55, "name": "Run 55 (Final Sign-off)", "peak_power_kw": 126.1, "peak_torque_nm": 210.5, "best_bsfc_gkwh": 214.6, "max_egt_c": 860.0, "avg_oil_press_kpa": 397.7, "atm_press_kpa": 90.8}], "runs_data": {"51": [{"rpm": 1200, "acc": 100.2, "k": 1.1484, "power": 16.24, "corrected_power": 18.6, "dyno_torque": 129.2, "corrected_torque": 148.4, "bsfc": 271.6, "fuel_consumption": 1.23, "water_temp_in": 80.0, "water_temp_out": 84.0, "oil_temp": 80.0, "oil_press": 175.0, "afr": 14.45, "in_air_press": 0.18, "in_air_temp": 24.2, "ex_gas_temp": 504.0, "back_press": 1.4, "td_temp": 25.5, "tw_temp": 22.1, "fuel_press": 406.26, "crank_press": 0.19, "atm_press": 91.25, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 1600, "acc": 100.2, "k": 1.1484, "power": 24.18, "corrected_power": 27.8, "dyno_torque": 144.3, "corrected_torque": 165.7, "bsfc": 245.3, "fuel_consumption": 1.65, "water_temp_in": 80.0, "water_temp_out": 84.5, "oil_temp": 83.0, "oil_press": 233.0, "afr": 14.43, "in_air_press": 0.2, "in_air_temp": 24.3, "ex_gas_temp": 569.0, "back_press": 1.5, "td_temp": 25.7, "tw_temp": 22.1, "fuel_press": 406.13, "crank_press": 0.2, "atm_press": 91.25, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 2000, "acc": 100.2, "k": 1.1484, "power": 32.51, "corrected_power": 37.3, "dyno_torque": 155.2, "corrected_torque": 178.2, "bsfc": 229.7, "fuel_consumption": 2.07, "water_temp_in": 80.0, "water_temp_out": 85.1, "oil_temp": 85.2, "oil_press": 279.0, "afr": 14.38, "in_air_press": 0.22, "in_air_temp": 24.5, "ex_gas_temp": 606.0, "back_press": 1.7, "td_temp": 25.9, "tw_temp": 22.1, "fuel_press": 405.9, "crank_press": 0.22, "atm_press": 91.25, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 2400, "acc": 100.2, "k": 1.1484, "power": 40.79, "corrected_power": 46.8, "dyno_torque": 162.3, "corrected_torque": 186.4, "bsfc": 223.0, "fuel_consumption": 2.53, "water_temp_in": 80.0, "water_temp_out": 85.6, "oil_temp": 87.2, "oil_press": 317.0, "afr": 14.3, "in_air_press": 0.24, "in_air_temp": 24.6, "ex_gas_temp": 636.0, "back_press": 2.1, "td_temp": 26.1, "tw_temp": 22.1, "fuel_press": 405.6, "crank_press": 0.23, "atm_press": 91.25, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 2800, "acc": 100.2, "k": 1.1484, "power": 48.94, "corrected_power": 56.2, "dyno_torque": 166.9, "corrected_torque": 191.7, "bsfc": 219.4, "fuel_consumption": 2.98, "water_temp_in": 80.0, "water_temp_out": 86.2, "oil_temp": 89.1, "oil_press": 347.0, "afr": 14.21, "in_air_press": 0.26, "in_air_temp": 24.8, "ex_gas_temp": 664.0, "back_press": 2.7, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 405.24, "crank_press": 0.24, "atm_press": 91.24, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 3200, "acc": 100.2, "k": 1.1484, "power": 57.27, "corrected_power": 65.8, "dyno_torque": 170.9, "corrected_torque": 196.3, "bsfc": 221.2, "fuel_consumption": 3.52, "water_temp_in": 80.0, "water_temp_out": 86.7, "oil_temp": 90.9, "oil_press": 371.0, "afr": 14.09, "in_air_press": 0.28, "in_air_temp": 24.9, "ex_gas_temp": 688.0, "back_press": 3.4, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 404.83, "crank_press": 0.26, "atm_press": 91.24, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 3600, "acc": 100.2, "k": 1.1484, "power": 65.86, "corrected_power": 75.6, "dyno_torque": 174.7, "corrected_torque": 200.6, "bsfc": 227.7, "fuel_consumption": 4.17, "water_temp_in": 80.0, "water_temp_out": 87.3, "oil_temp": 92.6, "oil_press": 390.0, "afr": 13.94, "in_air_press": 0.3, "in_air_temp": 25.1, "ex_gas_temp": 712.0, "back_press": 4.2, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 404.39, "crank_press": 0.27, "atm_press": 91.23, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4000, "acc": 100.2, "k": 1.1484, "power": 74.31, "corrected_power": 85.3, "dyno_torque": 177.4, "corrected_torque": 203.7, "bsfc": 238.2, "fuel_consumption": 4.92, "water_temp_in": 80.0, "water_temp_out": 87.8, "oil_temp": 94.3, "oil_press": 406.0, "afr": 13.78, "in_air_press": 0.32, "in_air_temp": 25.2, "ex_gas_temp": 734.0, "back_press": 5.1, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 403.9, "crank_press": 0.28, "atm_press": 91.23, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4400, "acc": 100.1, "k": 1.1484, "power": 82.44, "corrected_power": 94.6, "dyno_torque": 178.9, "corrected_torque": 205.4, "bsfc": 250.0, "fuel_consumption": 5.72, "water_temp_in": 84.0, "water_temp_out": 88.4, "oil_temp": 95.9, "oil_press": 419.0, "afr": 13.6, "in_air_press": 0.34, "in_air_temp": 25.4, "ex_gas_temp": 754.0, "back_press": 6.2, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 403.38, "crank_press": 0.29, "atm_press": 91.22, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4500, "acc": 100.1, "k": 1.1484, "power": 84.45, "corrected_power": 97.0, "dyno_torque": 179.2, "corrected_torque": 205.8, "bsfc": 252.7, "fuel_consumption": 5.93, "water_temp_in": 84.0, "water_temp_out": 88.5, "oil_temp": 96.3, "oil_press": 421.0, "afr": 13.55, "in_air_press": 0.35, "in_air_temp": 25.4, "ex_gas_temp": 759.0, "back_press": 6.5, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 403.24, "crank_press": 0.3, "atm_press": 91.22, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4600, "acc": 100.1, "k": 1.1484, "power": 86.47, "corrected_power": 99.3, "dyno_torque": 179.5, "corrected_torque": 206.1, "bsfc": 255.5, "fuel_consumption": 6.14, "water_temp_in": 84.0, "water_temp_out": 88.6, "oil_temp": 96.7, "oil_press": 424.0, "afr": 13.5, "in_air_press": 0.35, "in_air_temp": 25.4, "ex_gas_temp": 764.0, "back_press": 6.8, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 403.1, "crank_press": 0.3, "atm_press": 91.22, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4700, "acc": 100.1, "k": 1.1484, "power": 88.4, "corrected_power": 101.5, "dyno_torque": 179.6, "corrected_torque": 206.3, "bsfc": 258.6, "fuel_consumption": 6.35, "water_temp_in": 84.0, "water_temp_out": 88.8, "oil_temp": 97.1, "oil_press": 426.0, "afr": 13.45, "in_air_press": 0.36, "in_air_temp": 25.5, "ex_gas_temp": 769.0, "back_press": 7.1, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 402.96, "crank_press": 0.3, "atm_press": 91.21, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4800, "acc": 100.1, "k": 1.1484, "power": 90.33, "corrected_power": 103.8, "dyno_torque": 179.7, "corrected_torque": 206.4, "bsfc": 261.6, "fuel_consumption": 6.56, "water_temp_in": 84.0, "water_temp_out": 88.9, "oil_temp": 97.5, "oil_press": 429.0, "afr": 13.4, "in_air_press": 0.36, "in_air_temp": 25.5, "ex_gas_temp": 774.0, "back_press": 7.4, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 402.82, "crank_press": 0.31, "atm_press": 91.21, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 4900, "acc": 100.1, "k": 1.1484, "power": 92.06, "corrected_power": 105.7, "dyno_torque": 179.4, "corrected_torque": 206.0, "bsfc": 264.9, "fuel_consumption": 6.77, "water_temp_in": 84.0, "water_temp_out": 89.0, "oil_temp": 97.8, "oil_press": 431.0, "afr": 13.35, "in_air_press": 0.37, "in_air_temp": 25.5, "ex_gas_temp": 779.0, "back_press": 7.7, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 402.67, "crank_press": 0.31, "atm_press": 91.21, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 5000, "acc": 100.1, "k": 1.1484, "power": 93.62, "corrected_power": 107.5, "dyno_torque": 178.8, "corrected_torque": 205.3, "bsfc": 268.4, "fuel_consumption": 6.98, "water_temp_in": 84.0, "water_temp_out": 89.2, "oil_temp": 98.2, "oil_press": 433.0, "afr": 13.29, "in_air_press": 0.37, "in_air_temp": 25.6, "ex_gas_temp": 784.0, "back_press": 8.0, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 402.53, "crank_press": 0.31, "atm_press": 91.21, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 5100, "acc": 100.1, "k": 1.1484, "power": 95.07, "corrected_power": 109.2, "dyno_torque": 178.0, "corrected_torque": 204.4, "bsfc": 272.2, "fuel_consumption": 7.19, "water_temp_in": 84.0, "water_temp_out": 89.3, "oil_temp": 98.6, "oil_press": 435.0, "afr": 13.24, "in_air_press": 0.38, "in_air_temp": 25.6, "ex_gas_temp": 789.0, "back_press": 8.4, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 402.38, "crank_press": 0.32, "atm_press": 91.21, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 5500, "acc": 100.1, "k": 1.1484, "power": 100.68, "corrected_power": 115.6, "dyno_torque": 174.8, "corrected_torque": 200.7, "bsfc": 285.2, "fuel_consumption": 7.98, "water_temp_in": 84.0, "water_temp_out": 89.9, "oil_temp": 100.1, "oil_press": 442.0, "afr": 13.01, "in_air_press": 0.4, "in_air_temp": 25.8, "ex_gas_temp": 807.0, "back_press": 9.8, "td_temp": 26.1, "tw_temp": 22.1, "fuel_press": 401.77, "crank_press": 0.33, "atm_press": 91.2, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 5900, "acc": 100.1, "k": 1.1484, "power": 105.04, "corrected_power": 120.6, "dyno_torque": 170.0, "corrected_torque": 195.2, "bsfc": 299.7, "fuel_consumption": 8.74, "water_temp_in": 84.0, "water_temp_out": 90.4, "oil_temp": 101.6, "oil_press": 447.0, "afr": 12.75, "in_air_press": 0.42, "in_air_temp": 25.9, "ex_gas_temp": 825.0, "back_press": 11.3, "td_temp": 25.9, "tw_temp": 22.1, "fuel_press": 401.13, "crank_press": 0.34, "atm_press": 91.19, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6200, "acc": 100.1, "k": 1.1484, "power": 106.68, "corrected_power": 122.5, "dyno_torque": 164.3, "corrected_torque": 188.7, "bsfc": 311.4, "fuel_consumption": 9.23, "water_temp_in": 84.0, "water_temp_out": 90.8, "oil_temp": 102.7, "oil_press": 451.0, "afr": 12.55, "in_air_press": 0.43, "in_air_temp": 26.0, "ex_gas_temp": 839.0, "back_press": 12.6, "td_temp": 25.8, "tw_temp": 22.1, "fuel_press": 400.63, "crank_press": 0.35, "atm_press": 91.19, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6300, "acc": 100.1, "k": 1.1484, "power": 106.88, "corrected_power": 122.7, "dyno_torque": 162.0, "corrected_torque": 186.0, "bsfc": 315.6, "fuel_consumption": 9.37, "water_temp_in": 84.0, "water_temp_out": 91.0, "oil_temp": 103.1, "oil_press": 452.0, "afr": 12.49, "in_air_press": 0.44, "in_air_temp": 26.1, "ex_gas_temp": 843.0, "back_press": 13.0, "td_temp": 25.7, "tw_temp": 22.1, "fuel_press": 400.46, "crank_press": 0.36, "atm_press": 91.19, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6400, "acc": 100.1, "k": 1.1484, "power": 107.04, "corrected_power": 122.9, "dyno_torque": 159.7, "corrected_torque": 183.4, "bsfc": 320.2, "fuel_consumption": 9.52, "water_temp_in": 84.0, "water_temp_out": 91.1, "oil_temp": 103.4, "oil_press": 453.0, "afr": 12.42, "in_air_press": 0.44, "in_air_temp": 26.1, "ex_gas_temp": 847.0, "back_press": 13.4, "td_temp": 25.7, "tw_temp": 22.1, "fuel_press": 400.28, "crank_press": 0.36, "atm_press": 91.18, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6500, "acc": 100.1, "k": 1.1484, "power": 107.08, "corrected_power": 122.9, "dyno_torque": 157.3, "corrected_torque": 180.6, "bsfc": 325.0, "fuel_consumption": 9.67, "water_temp_in": 84.0, "water_temp_out": 91.2, "oil_temp": 103.8, "oil_press": 454.0, "afr": 12.35, "in_air_press": 0.45, "in_air_temp": 26.1, "ex_gas_temp": 852.0, "back_press": 13.9, "td_temp": 25.6, "tw_temp": 22.1, "fuel_press": 400.11, "crank_press": 0.36, "atm_press": 91.18, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6600, "acc": 100.1, "k": 1.1484, "power": 107.34, "corrected_power": 123.2, "dyno_torque": 155.3, "corrected_torque": 178.3, "bsfc": 329.6, "fuel_consumption": 9.83, "water_temp_in": 84.0, "water_temp_out": 91.4, "oil_temp": 104.1, "oil_press": 454.0, "afr": 12.27, "in_air_press": 0.45, "in_air_temp": 26.2, "ex_gas_temp": 856.0, "back_press": 14.3, "td_temp": 25.6, "tw_temp": 22.1, "fuel_press": 399.94, "crank_press": 0.37, "atm_press": 91.18, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}, {"rpm": 6700, "acc": 100.1, "k": 1.1484, "power": 106.16, "corrected_power": 121.9, "dyno_torque": 151.3, "corrected_torque": 173.7, "bsfc": 333.7, "fuel_consumption": 9.84, "water_temp_in": 84.0, "water_temp_out": 91.5, "oil_temp": 104.5, "oil_press": 455.0, "afr": 12.2, "in_air_press": 0.46, "in_air_temp": 26.2, "ex_gas_temp": 860.0, "back_press": 14.8, "td_temp": 25.5, "tw_temp": 22.1, "fuel_press": 399.76, "crank_press": 0.37, "atm_press": 91.18, "date": "2025-06-05", "ref_no": 51, "run_name": "Run 51 (Break-in Baseline)"}], "52": [{"rpm": 1200, "acc": 100.2, "k": 1.1484, "power": 16.41, "corrected_power": 18.9, "dyno_torque": 130.6, "corrected_torque": 150.0, "bsfc": 269.8, "fuel_consumption": 1.23, "water_temp_in": 80.0, "water_temp_out": 84.0, "oil_temp": 80.0, "oil_press": 175.0, "afr": 14.45, "in_air_press": 0.18, "in_air_temp": 24.5, "ex_gas_temp": 504.0, "back_press": 1.4, "td_temp": 25.8, "tw_temp": 22.1, "fuel_press": 406.26, "crank_press": 0.19, "atm_press": 91.05, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 1600, "acc": 100.2, "k": 1.1484, "power": 24.41, "corrected_power": 28.0, "dyno_torque": 145.7, "corrected_torque": 167.3, "bsfc": 243.5, "fuel_consumption": 1.65, "water_temp_in": 80.0, "water_temp_out": 84.5, "oil_temp": 83.0, "oil_press": 233.0, "afr": 14.43, "in_air_press": 0.2, "in_air_temp": 24.6, "ex_gas_temp": 569.0, "back_press": 1.5, "td_temp": 26.0, "tw_temp": 22.1, "fuel_press": 406.13, "crank_press": 0.2, "atm_press": 91.05, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 2000, "acc": 100.2, "k": 1.1484, "power": 32.8, "corrected_power": 37.7, "dyno_torque": 156.6, "corrected_torque": 179.8, "bsfc": 227.9, "fuel_consumption": 2.08, "water_temp_in": 80.0, "water_temp_out": 85.1, "oil_temp": 85.2, "oil_press": 279.0, "afr": 14.38, "in_air_press": 0.22, "in_air_temp": 24.8, "ex_gas_temp": 606.0, "back_press": 1.7, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 405.9, "crank_press": 0.22, "atm_press": 91.05, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 2400, "acc": 100.2, "k": 1.1484, "power": 41.14, "corrected_power": 47.3, "dyno_torque": 163.7, "corrected_torque": 188.0, "bsfc": 221.2, "fuel_consumption": 2.53, "water_temp_in": 80.0, "water_temp_out": 85.6, "oil_temp": 87.2, "oil_press": 317.0, "afr": 14.3, "in_air_press": 0.24, "in_air_temp": 24.9, "ex_gas_temp": 636.0, "back_press": 2.1, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 405.6, "crank_press": 0.23, "atm_press": 91.05, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 2800, "acc": 100.2, "k": 1.1484, "power": 49.35, "corrected_power": 56.7, "dyno_torque": 168.3, "corrected_torque": 193.3, "bsfc": 217.6, "fuel_consumption": 2.98, "water_temp_in": 80.0, "water_temp_out": 86.2, "oil_temp": 89.1, "oil_press": 347.0, "afr": 14.21, "in_air_press": 0.26, "in_air_temp": 25.1, "ex_gas_temp": 664.0, "back_press": 2.7, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 405.24, "crank_press": 0.24, "atm_press": 91.04, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 3200, "acc": 100.2, "k": 1.1484, "power": 57.74, "corrected_power": 66.3, "dyno_torque": 172.3, "corrected_torque": 197.9, "bsfc": 219.4, "fuel_consumption": 3.52, "water_temp_in": 80.0, "water_temp_out": 86.7, "oil_temp": 90.9, "oil_press": 371.0, "afr": 14.09, "in_air_press": 0.28, "in_air_temp": 25.2, "ex_gas_temp": 688.0, "back_press": 3.4, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 404.83, "crank_press": 0.26, "atm_press": 91.04, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 3600, "acc": 100.2, "k": 1.1484, "power": 66.39, "corrected_power": 76.2, "dyno_torque": 176.1, "corrected_torque": 202.2, "bsfc": 225.9, "fuel_consumption": 4.17, "water_temp_in": 80.0, "water_temp_out": 87.3, "oil_temp": 92.6, "oil_press": 390.0, "afr": 13.94, "in_air_press": 0.3, "in_air_temp": 25.4, "ex_gas_temp": 712.0, "back_press": 4.2, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 404.39, "crank_press": 0.27, "atm_press": 91.03, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4000, "acc": 100.2, "k": 1.1484, "power": 74.9, "corrected_power": 86.0, "dyno_torque": 178.8, "corrected_torque": 205.3, "bsfc": 236.4, "fuel_consumption": 4.92, "water_temp_in": 80.0, "water_temp_out": 87.8, "oil_temp": 94.3, "oil_press": 406.0, "afr": 13.78, "in_air_press": 0.32, "in_air_temp": 25.5, "ex_gas_temp": 734.0, "back_press": 5.1, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 403.9, "crank_press": 0.28, "atm_press": 91.03, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4400, "acc": 100.1, "k": 1.1484, "power": 83.08, "corrected_power": 95.4, "dyno_torque": 180.3, "corrected_torque": 207.0, "bsfc": 248.2, "fuel_consumption": 5.73, "water_temp_in": 84.0, "water_temp_out": 88.4, "oil_temp": 95.9, "oil_press": 419.0, "afr": 13.6, "in_air_press": 0.34, "in_air_temp": 25.7, "ex_gas_temp": 754.0, "back_press": 6.2, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 403.38, "crank_press": 0.29, "atm_press": 91.02, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4500, "acc": 100.1, "k": 1.1484, "power": 85.11, "corrected_power": 97.7, "dyno_torque": 180.6, "corrected_torque": 207.4, "bsfc": 250.9, "fuel_consumption": 5.93, "water_temp_in": 84.0, "water_temp_out": 88.5, "oil_temp": 96.3, "oil_press": 421.0, "afr": 13.55, "in_air_press": 0.35, "in_air_temp": 25.7, "ex_gas_temp": 759.0, "back_press": 6.5, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 403.24, "crank_press": 0.3, "atm_press": 91.02, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4600, "acc": 100.1, "k": 1.1484, "power": 87.15, "corrected_power": 100.1, "dyno_torque": 180.9, "corrected_torque": 207.7, "bsfc": 253.7, "fuel_consumption": 6.14, "water_temp_in": 84.0, "water_temp_out": 88.6, "oil_temp": 96.7, "oil_press": 424.0, "afr": 13.5, "in_air_press": 0.35, "in_air_temp": 25.7, "ex_gas_temp": 764.0, "back_press": 6.8, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 403.1, "crank_press": 0.3, "atm_press": 91.02, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4700, "acc": 100.1, "k": 1.1484, "power": 89.09, "corrected_power": 102.3, "dyno_torque": 181.0, "corrected_torque": 207.9, "bsfc": 256.8, "fuel_consumption": 6.36, "water_temp_in": 84.0, "water_temp_out": 88.8, "oil_temp": 97.1, "oil_press": 426.0, "afr": 13.45, "in_air_press": 0.36, "in_air_temp": 25.8, "ex_gas_temp": 769.0, "back_press": 7.1, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 402.96, "crank_press": 0.3, "atm_press": 91.01, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4800, "acc": 100.1, "k": 1.1484, "power": 91.04, "corrected_power": 104.6, "dyno_torque": 181.1, "corrected_torque": 208.0, "bsfc": 259.8, "fuel_consumption": 6.57, "water_temp_in": 84.0, "water_temp_out": 88.9, "oil_temp": 97.5, "oil_press": 429.0, "afr": 13.4, "in_air_press": 0.36, "in_air_temp": 25.8, "ex_gas_temp": 774.0, "back_press": 7.4, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 402.82, "crank_press": 0.31, "atm_press": 91.01, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 4900, "acc": 100.1, "k": 1.1484, "power": 92.78, "corrected_power": 106.5, "dyno_torque": 180.8, "corrected_torque": 207.6, "bsfc": 263.1, "fuel_consumption": 6.78, "water_temp_in": 84.0, "water_temp_out": 89.0, "oil_temp": 97.8, "oil_press": 431.0, "afr": 13.35, "in_air_press": 0.37, "in_air_temp": 25.8, "ex_gas_temp": 779.0, "back_press": 7.7, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 402.67, "crank_press": 0.31, "atm_press": 91.01, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 5000, "acc": 100.1, "k": 1.1484, "power": 94.36, "corrected_power": 108.3, "dyno_torque": 180.2, "corrected_torque": 206.9, "bsfc": 266.6, "fuel_consumption": 6.99, "water_temp_in": 84.0, "water_temp_out": 89.2, "oil_temp": 98.2, "oil_press": 433.0, "afr": 13.29, "in_air_press": 0.37, "in_air_temp": 25.9, "ex_gas_temp": 784.0, "back_press": 8.0, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 402.53, "crank_press": 0.31, "atm_press": 91.01, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 5100, "acc": 100.1, "k": 1.1484, "power": 95.82, "corrected_power": 110.0, "dyno_torque": 179.4, "corrected_torque": 206.0, "bsfc": 270.4, "fuel_consumption": 7.2, "water_temp_in": 84.0, "water_temp_out": 89.3, "oil_temp": 98.6, "oil_press": 435.0, "afr": 13.24, "in_air_press": 0.38, "in_air_temp": 25.9, "ex_gas_temp": 789.0, "back_press": 8.4, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 402.38, "crank_press": 0.32, "atm_press": 91.01, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 5500, "acc": 100.1, "k": 1.1484, "power": 101.49, "corrected_power": 116.5, "dyno_torque": 176.2, "corrected_torque": 202.3, "bsfc": 283.4, "fuel_consumption": 7.99, "water_temp_in": 84.0, "water_temp_out": 89.9, "oil_temp": 100.1, "oil_press": 442.0, "afr": 13.01, "in_air_press": 0.4, "in_air_temp": 26.1, "ex_gas_temp": 807.0, "back_press": 9.8, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 401.77, "crank_press": 0.33, "atm_press": 91.0, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 5900, "acc": 100.1, "k": 1.1484, "power": 105.9, "corrected_power": 121.6, "dyno_torque": 171.4, "corrected_torque": 196.8, "bsfc": 297.9, "fuel_consumption": 8.76, "water_temp_in": 84.0, "water_temp_out": 90.4, "oil_temp": 101.6, "oil_press": 447.0, "afr": 12.75, "in_air_press": 0.42, "in_air_temp": 26.2, "ex_gas_temp": 825.0, "back_press": 11.3, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 401.13, "crank_press": 0.34, "atm_press": 90.99, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6200, "acc": 100.1, "k": 1.1484, "power": 107.59, "corrected_power": 123.6, "dyno_torque": 165.7, "corrected_torque": 190.3, "bsfc": 309.6, "fuel_consumption": 9.25, "water_temp_in": 84.0, "water_temp_out": 90.8, "oil_temp": 102.7, "oil_press": 451.0, "afr": 12.55, "in_air_press": 0.43, "in_air_temp": 26.3, "ex_gas_temp": 839.0, "back_press": 12.6, "td_temp": 26.1, "tw_temp": 22.1, "fuel_press": 400.63, "crank_press": 0.35, "atm_press": 90.99, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6300, "acc": 100.1, "k": 1.1484, "power": 107.81, "corrected_power": 123.8, "dyno_torque": 163.4, "corrected_torque": 187.6, "bsfc": 313.8, "fuel_consumption": 9.4, "water_temp_in": 84.0, "water_temp_out": 91.0, "oil_temp": 103.1, "oil_press": 452.0, "afr": 12.49, "in_air_press": 0.44, "in_air_temp": 26.4, "ex_gas_temp": 843.0, "back_press": 13.0, "td_temp": 26.0, "tw_temp": 22.1, "fuel_press": 400.46, "crank_press": 0.36, "atm_press": 90.99, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6400, "acc": 100.1, "k": 1.1484, "power": 107.98, "corrected_power": 124.0, "dyno_torque": 161.1, "corrected_torque": 185.0, "bsfc": 318.4, "fuel_consumption": 9.55, "water_temp_in": 84.0, "water_temp_out": 91.1, "oil_temp": 103.4, "oil_press": 453.0, "afr": 12.42, "in_air_press": 0.44, "in_air_temp": 26.4, "ex_gas_temp": 847.0, "back_press": 13.4, "td_temp": 26.0, "tw_temp": 22.1, "fuel_press": 400.28, "crank_press": 0.36, "atm_press": 90.98, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6500, "acc": 100.1, "k": 1.1484, "power": 108.03, "corrected_power": 124.0, "dyno_torque": 158.7, "corrected_torque": 182.2, "bsfc": 323.2, "fuel_consumption": 9.7, "water_temp_in": 84.0, "water_temp_out": 91.2, "oil_temp": 103.8, "oil_press": 454.0, "afr": 12.35, "in_air_press": 0.45, "in_air_temp": 26.4, "ex_gas_temp": 852.0, "back_press": 13.9, "td_temp": 25.9, "tw_temp": 22.1, "fuel_press": 400.11, "crank_press": 0.36, "atm_press": 90.98, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6600, "acc": 100.1, "k": 1.1484, "power": 108.31, "corrected_power": 124.3, "dyno_torque": 156.7, "corrected_torque": 179.9, "bsfc": 327.8, "fuel_consumption": 9.86, "water_temp_in": 84.0, "water_temp_out": 91.4, "oil_temp": 104.1, "oil_press": 454.0, "afr": 12.27, "in_air_press": 0.45, "in_air_temp": 26.5, "ex_gas_temp": 856.0, "back_press": 14.3, "td_temp": 25.9, "tw_temp": 22.1, "fuel_press": 399.94, "crank_press": 0.37, "atm_press": 90.98, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}, {"rpm": 6700, "acc": 100.1, "k": 1.1484, "power": 107.07, "corrected_power": 123.0, "dyno_torque": 152.6, "corrected_torque": 175.3, "bsfc": 331.9, "fuel_consumption": 9.87, "water_temp_in": 84.0, "water_temp_out": 91.5, "oil_temp": 104.5, "oil_press": 455.0, "afr": 12.2, "in_air_press": 0.46, "in_air_temp": 26.5, "ex_gas_temp": 860.0, "back_press": 14.8, "td_temp": 25.8, "tw_temp": 22.1, "fuel_press": 399.76, "crank_press": 0.37, "atm_press": 90.98, "date": "2025-06-12", "ref_no": 52, "run_name": "Run 52 (VVT Optimization)"}], "53": [{"rpm": 1200, "acc": 100.2, "k": 1.1484, "power": 16.59, "corrected_power": 19.1, "dyno_torque": 132.0, "corrected_torque": 151.6, "bsfc": 267.7, "fuel_consumption": 1.23, "water_temp_in": 80.0, "water_temp_out": 84.0, "oil_temp": 80.0, "oil_press": 175.0, "afr": 14.45, "in_air_press": 0.18, "in_air_temp": 24.8, "ex_gas_temp": 504.0, "back_press": 1.4, "td_temp": 26.1, "tw_temp": 22.1, "fuel_press": 406.26, "crank_press": 0.19, "atm_press": 90.75, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 1600, "acc": 100.2, "k": 1.1484, "power": 24.65, "corrected_power": 28.3, "dyno_torque": 147.1, "corrected_torque": 168.9, "bsfc": 241.4, "fuel_consumption": 1.65, "water_temp_in": 80.0, "water_temp_out": 84.5, "oil_temp": 83.0, "oil_press": 233.0, "afr": 14.43, "in_air_press": 0.2, "in_air_temp": 24.9, "ex_gas_temp": 569.0, "back_press": 1.5, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 406.13, "crank_press": 0.2, "atm_press": 90.75, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 2000, "acc": 100.2, "k": 1.1484, "power": 33.09, "corrected_power": 38.0, "dyno_torque": 158.0, "corrected_torque": 181.4, "bsfc": 225.8, "fuel_consumption": 2.08, "water_temp_in": 80.0, "water_temp_out": 85.1, "oil_temp": 85.2, "oil_press": 279.0, "afr": 14.38, "in_air_press": 0.22, "in_air_temp": 25.1, "ex_gas_temp": 606.0, "back_press": 1.7, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 405.9, "crank_press": 0.22, "atm_press": 90.75, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 2400, "acc": 100.2, "k": 1.1484, "power": 41.5, "corrected_power": 47.7, "dyno_torque": 165.1, "corrected_torque": 189.6, "bsfc": 219.1, "fuel_consumption": 2.53, "water_temp_in": 80.0, "water_temp_out": 85.6, "oil_temp": 87.2, "oil_press": 317.0, "afr": 14.3, "in_air_press": 0.24, "in_air_temp": 25.2, "ex_gas_temp": 636.0, "back_press": 2.1, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 405.6, "crank_press": 0.23, "atm_press": 90.75, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 2800, "acc": 100.2, "k": 1.1484, "power": 49.76, "corrected_power": 57.2, "dyno_torque": 169.7, "corrected_torque": 194.9, "bsfc": 215.5, "fuel_consumption": 2.98, "water_temp_in": 80.0, "water_temp_out": 86.2, "oil_temp": 89.1, "oil_press": 347.0, "afr": 14.21, "in_air_press": 0.26, "in_air_temp": 25.4, "ex_gas_temp": 664.0, "back_press": 2.7, "td_temp": 26.8, "tw_temp": 22.1, "fuel_press": 405.24, "crank_press": 0.24, "atm_press": 90.74, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 3200, "acc": 100.2, "k": 1.1484, "power": 58.21, "corrected_power": 66.9, "dyno_torque": 173.7, "corrected_torque": 199.5, "bsfc": 217.3, "fuel_consumption": 3.51, "water_temp_in": 80.0, "water_temp_out": 86.7, "oil_temp": 90.9, "oil_press": 371.0, "afr": 14.09, "in_air_press": 0.28, "in_air_temp": 25.5, "ex_gas_temp": 688.0, "back_press": 3.4, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 404.83, "crank_press": 0.26, "atm_press": 90.74, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 3600, "acc": 100.2, "k": 1.1484, "power": 66.92, "corrected_power": 76.8, "dyno_torque": 177.5, "corrected_torque": 203.8, "bsfc": 223.8, "fuel_consumption": 4.16, "water_temp_in": 80.0, "water_temp_out": 87.3, "oil_temp": 92.6, "oil_press": 390.0, "afr": 13.94, "in_air_press": 0.3, "in_air_temp": 25.7, "ex_gas_temp": 712.0, "back_press": 4.2, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 404.39, "crank_press": 0.27, "atm_press": 90.73, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4000, "acc": 100.2, "k": 1.1484, "power": 75.49, "corrected_power": 86.7, "dyno_torque": 180.2, "corrected_torque": 206.9, "bsfc": 234.3, "fuel_consumption": 4.91, "water_temp_in": 80.0, "water_temp_out": 87.8, "oil_temp": 94.3, "oil_press": 406.0, "afr": 13.78, "in_air_press": 0.32, "in_air_temp": 25.8, "ex_gas_temp": 734.0, "back_press": 5.1, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 403.9, "crank_press": 0.28, "atm_press": 90.73, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4400, "acc": 100.1, "k": 1.1484, "power": 83.68, "corrected_power": 96.1, "dyno_torque": 181.6, "corrected_torque": 208.6, "bsfc": 246.1, "fuel_consumption": 5.72, "water_temp_in": 84.0, "water_temp_out": 88.4, "oil_temp": 95.9, "oil_press": 419.0, "afr": 13.6, "in_air_press": 0.34, "in_air_temp": 26.0, "ex_gas_temp": 754.0, "back_press": 6.2, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 403.38, "crank_press": 0.29, "atm_press": 90.72, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4500, "acc": 100.1, "k": 1.1484, "power": 85.77, "corrected_power": 98.5, "dyno_torque": 182.0, "corrected_torque": 209.0, "bsfc": 248.8, "fuel_consumption": 5.93, "water_temp_in": 84.0, "water_temp_out": 88.5, "oil_temp": 96.3, "oil_press": 421.0, "afr": 13.55, "in_air_press": 0.35, "in_air_temp": 26.0, "ex_gas_temp": 759.0, "back_press": 6.5, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 403.24, "crank_press": 0.3, "atm_press": 90.72, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4600, "acc": 100.1, "k": 1.1484, "power": 87.82, "corrected_power": 100.8, "dyno_torque": 182.3, "corrected_torque": 209.3, "bsfc": 251.6, "fuel_consumption": 6.14, "water_temp_in": 84.0, "water_temp_out": 88.6, "oil_temp": 96.7, "oil_press": 424.0, "afr": 13.5, "in_air_press": 0.35, "in_air_temp": 26.0, "ex_gas_temp": 764.0, "back_press": 6.8, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 403.1, "crank_press": 0.3, "atm_press": 90.72, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4700, "acc": 100.1, "k": 1.1484, "power": 89.78, "corrected_power": 103.1, "dyno_torque": 182.4, "corrected_torque": 209.5, "bsfc": 254.7, "fuel_consumption": 6.35, "water_temp_in": 84.0, "water_temp_out": 88.8, "oil_temp": 97.1, "oil_press": 426.0, "afr": 13.45, "in_air_press": 0.36, "in_air_temp": 26.1, "ex_gas_temp": 769.0, "back_press": 7.1, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 402.96, "crank_press": 0.3, "atm_press": 90.71, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4800, "acc": 100.1, "k": 1.1484, "power": 91.74, "corrected_power": 105.4, "dyno_torque": 182.5, "corrected_torque": 209.6, "bsfc": 257.7, "fuel_consumption": 6.57, "water_temp_in": 84.0, "water_temp_out": 88.9, "oil_temp": 97.5, "oil_press": 429.0, "afr": 13.4, "in_air_press": 0.36, "in_air_temp": 26.1, "ex_gas_temp": 774.0, "back_press": 7.4, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 402.82, "crank_press": 0.31, "atm_press": 90.71, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 4900, "acc": 100.1, "k": 1.1484, "power": 93.5, "corrected_power": 107.4, "dyno_torque": 182.2, "corrected_torque": 209.2, "bsfc": 261.0, "fuel_consumption": 6.78, "water_temp_in": 84.0, "water_temp_out": 89.0, "oil_temp": 97.8, "oil_press": 431.0, "afr": 13.35, "in_air_press": 0.37, "in_air_temp": 26.1, "ex_gas_temp": 779.0, "back_press": 7.7, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 402.67, "crank_press": 0.31, "atm_press": 90.71, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 5000, "acc": 100.1, "k": 1.1484, "power": 95.09, "corrected_power": 109.2, "dyno_torque": 181.6, "corrected_torque": 208.5, "bsfc": 264.5, "fuel_consumption": 6.99, "water_temp_in": 84.0, "water_temp_out": 89.2, "oil_temp": 98.2, "oil_press": 433.0, "afr": 13.29, "in_air_press": 0.37, "in_air_temp": 26.2, "ex_gas_temp": 784.0, "back_press": 8.0, "td_temp": 26.8, "tw_temp": 22.1, "fuel_press": 402.53, "crank_press": 0.31, "atm_press": 90.71, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 5100, "acc": 100.1, "k": 1.1484, "power": 96.57, "corrected_power": 110.9, "dyno_torque": 180.8, "corrected_torque": 207.6, "bsfc": 268.3, "fuel_consumption": 7.2, "water_temp_in": 84.0, "water_temp_out": 89.3, "oil_temp": 98.6, "oil_press": 435.0, "afr": 13.24, "in_air_press": 0.38, "in_air_temp": 26.2, "ex_gas_temp": 789.0, "back_press": 8.4, "td_temp": 26.8, "tw_temp": 22.1, "fuel_press": 402.38, "crank_press": 0.32, "atm_press": 90.71, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 5500, "acc": 100.1, "k": 1.1484, "power": 102.3, "corrected_power": 117.4, "dyno_torque": 177.6, "corrected_torque": 203.9, "bsfc": 281.3, "fuel_consumption": 7.99, "water_temp_in": 84.0, "water_temp_out": 89.9, "oil_temp": 100.1, "oil_press": 442.0, "afr": 13.01, "in_air_press": 0.4, "in_air_temp": 26.4, "ex_gas_temp": 807.0, "back_press": 9.8, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 401.77, "crank_press": 0.33, "atm_press": 90.7, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 5900, "acc": 100.1, "k": 1.1484, "power": 106.77, "corrected_power": 122.6, "dyno_torque": 172.8, "corrected_torque": 198.4, "bsfc": 295.8, "fuel_consumption": 8.77, "water_temp_in": 84.0, "water_temp_out": 90.4, "oil_temp": 101.6, "oil_press": 447.0, "afr": 12.75, "in_air_press": 0.42, "in_air_temp": 26.5, "ex_gas_temp": 825.0, "back_press": 11.3, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 401.13, "crank_press": 0.34, "atm_press": 90.69, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6200, "acc": 100.1, "k": 1.1484, "power": 108.5, "corrected_power": 124.6, "dyno_torque": 167.1, "corrected_torque": 191.9, "bsfc": 307.5, "fuel_consumption": 9.27, "water_temp_in": 84.0, "water_temp_out": 90.8, "oil_temp": 102.7, "oil_press": 451.0, "afr": 12.55, "in_air_press": 0.43, "in_air_temp": 26.6, "ex_gas_temp": 839.0, "back_press": 12.6, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 400.63, "crank_press": 0.35, "atm_press": 90.69, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6300, "acc": 100.1, "k": 1.1484, "power": 108.73, "corrected_power": 124.8, "dyno_torque": 164.8, "corrected_torque": 189.2, "bsfc": 311.7, "fuel_consumption": 9.41, "water_temp_in": 84.0, "water_temp_out": 91.0, "oil_temp": 103.1, "oil_press": 452.0, "afr": 12.49, "in_air_press": 0.44, "in_air_temp": 26.7, "ex_gas_temp": 843.0, "back_press": 13.0, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 400.46, "crank_press": 0.36, "atm_press": 90.69, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6400, "acc": 100.1, "k": 1.1484, "power": 108.91, "corrected_power": 125.1, "dyno_torque": 162.5, "corrected_torque": 186.6, "bsfc": 316.3, "fuel_consumption": 9.57, "water_temp_in": 84.0, "water_temp_out": 91.1, "oil_temp": 103.4, "oil_press": 453.0, "afr": 12.42, "in_air_press": 0.44, "in_air_temp": 26.7, "ex_gas_temp": 847.0, "back_press": 13.4, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 400.28, "crank_press": 0.36, "atm_press": 90.68, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6500, "acc": 100.1, "k": 1.1484, "power": 108.91, "corrected_power": 125.1, "dyno_torque": 160.0, "corrected_torque": 183.8, "bsfc": 321.1, "fuel_consumption": 9.71, "water_temp_in": 84.0, "water_temp_out": 91.2, "oil_temp": 103.8, "oil_press": 454.0, "afr": 12.35, "in_air_press": 0.45, "in_air_temp": 26.7, "ex_gas_temp": 852.0, "back_press": 13.9, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 400.11, "crank_press": 0.36, "atm_press": 90.68, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6600, "acc": 100.1, "k": 1.1484, "power": 109.21, "corrected_power": 125.5, "dyno_torque": 158.0, "corrected_torque": 181.5, "bsfc": 325.7, "fuel_consumption": 9.88, "water_temp_in": 84.0, "water_temp_out": 91.4, "oil_temp": 104.1, "oil_press": 454.0, "afr": 12.27, "in_air_press": 0.45, "in_air_temp": 26.8, "ex_gas_temp": 856.0, "back_press": 14.3, "td_temp": 26.2, "tw_temp": 22.1, "fuel_press": 399.94, "crank_press": 0.37, "atm_press": 90.68, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}, {"rpm": 6700, "acc": 100.1, "k": 1.1484, "power": 108.06, "corrected_power": 124.1, "dyno_torque": 154.0, "corrected_torque": 176.9, "bsfc": 329.8, "fuel_consumption": 9.9, "water_temp_in": 84.0, "water_temp_out": 91.5, "oil_temp": 104.5, "oil_press": 455.0, "afr": 12.2, "in_air_press": 0.46, "in_air_temp": 26.8, "ex_gas_temp": 860.0, "back_press": 14.8, "td_temp": 26.1, "tw_temp": 22.1, "fuel_press": 399.76, "crank_press": 0.37, "atm_press": 90.68, "date": "2025-06-18", "ref_no": 53, "run_name": "Run 53 (Thermal Durability)"}], "54": [{"rpm": 1200, "acc": 100.2, "k": 1.1484, "power": 16.55, "corrected_power": 19.0, "dyno_torque": 131.7, "corrected_torque": 151.2, "bsfc": 268.4, "fuel_consumption": 1.23, "water_temp_in": 80.0, "water_temp_out": 84.0, "oil_temp": 80.0, "oil_press": 175.0, "afr": 14.45, "in_air_press": 0.18, "in_air_temp": 25.0, "ex_gas_temp": 504.0, "back_press": 1.4, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 406.26, "crank_press": 0.19, "atm_press": 90.95, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 1600, "acc": 100.2, "k": 1.1484, "power": 24.58, "corrected_power": 28.2, "dyno_torque": 146.7, "corrected_torque": 168.5, "bsfc": 242.1, "fuel_consumption": 1.65, "water_temp_in": 80.0, "water_temp_out": 84.5, "oil_temp": 83.0, "oil_press": 233.0, "afr": 14.43, "in_air_press": 0.2, "in_air_temp": 25.1, "ex_gas_temp": 569.0, "back_press": 1.5, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 406.13, "crank_press": 0.2, "atm_press": 90.95, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 2000, "acc": 100.2, "k": 1.1484, "power": 33.01, "corrected_power": 37.9, "dyno_torque": 157.6, "corrected_torque": 181.0, "bsfc": 226.5, "fuel_consumption": 2.08, "water_temp_in": 80.0, "water_temp_out": 85.1, "oil_temp": 85.2, "oil_press": 279.0, "afr": 14.38, "in_air_press": 0.22, "in_air_temp": 25.3, "ex_gas_temp": 606.0, "back_press": 1.7, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 405.9, "crank_press": 0.22, "atm_press": 90.95, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 2400, "acc": 100.2, "k": 1.1484, "power": 41.42, "corrected_power": 47.6, "dyno_torque": 164.8, "corrected_torque": 189.2, "bsfc": 219.8, "fuel_consumption": 2.53, "water_temp_in": 80.0, "water_temp_out": 85.6, "oil_temp": 87.2, "oil_press": 317.0, "afr": 14.3, "in_air_press": 0.24, "in_air_temp": 25.4, "ex_gas_temp": 636.0, "back_press": 2.1, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 405.6, "crank_press": 0.23, "atm_press": 90.95, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 2800, "acc": 100.2, "k": 1.1484, "power": 49.67, "corrected_power": 57.0, "dyno_torque": 169.4, "corrected_torque": 194.5, "bsfc": 216.2, "fuel_consumption": 2.98, "water_temp_in": 80.0, "water_temp_out": 86.2, "oil_temp": 89.1, "oil_press": 347.0, "afr": 14.21, "in_air_press": 0.26, "in_air_temp": 25.6, "ex_gas_temp": 664.0, "back_press": 2.7, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 405.24, "crank_press": 0.24, "atm_press": 90.94, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 3200, "acc": 100.2, "k": 1.1484, "power": 58.11, "corrected_power": 66.7, "dyno_torque": 173.4, "corrected_torque": 199.1, "bsfc": 218.0, "fuel_consumption": 3.52, "water_temp_in": 80.0, "water_temp_out": 86.7, "oil_temp": 90.9, "oil_press": 371.0, "afr": 14.09, "in_air_press": 0.28, "in_air_temp": 25.7, "ex_gas_temp": 688.0, "back_press": 3.4, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 404.83, "crank_press": 0.26, "atm_press": 90.94, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 3600, "acc": 100.2, "k": 1.1484, "power": 66.77, "corrected_power": 76.7, "dyno_torque": 177.1, "corrected_torque": 203.4, "bsfc": 224.5, "fuel_consumption": 4.16, "water_temp_in": 80.0, "water_temp_out": 87.3, "oil_temp": 92.6, "oil_press": 390.0, "afr": 13.94, "in_air_press": 0.3, "in_air_temp": 25.9, "ex_gas_temp": 712.0, "back_press": 4.2, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 404.39, "crank_press": 0.27, "atm_press": 90.93, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4000, "acc": 100.2, "k": 1.1484, "power": 75.32, "corrected_power": 86.5, "dyno_torque": 179.8, "corrected_torque": 206.5, "bsfc": 235.0, "fuel_consumption": 4.92, "water_temp_in": 80.0, "water_temp_out": 87.8, "oil_temp": 94.3, "oil_press": 406.0, "afr": 13.78, "in_air_press": 0.32, "in_air_temp": 26.0, "ex_gas_temp": 734.0, "back_press": 5.1, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 403.9, "crank_press": 0.28, "atm_press": 90.93, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4400, "acc": 100.1, "k": 1.1484, "power": 83.54, "corrected_power": 95.9, "dyno_torque": 181.3, "corrected_torque": 208.2, "bsfc": 246.8, "fuel_consumption": 5.73, "water_temp_in": 84.0, "water_temp_out": 88.4, "oil_temp": 95.9, "oil_press": 419.0, "afr": 13.6, "in_air_press": 0.34, "in_air_temp": 26.2, "ex_gas_temp": 754.0, "back_press": 6.2, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 403.38, "crank_press": 0.29, "atm_press": 90.92, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4500, "acc": 100.1, "k": 1.1484, "power": 85.58, "corrected_power": 98.3, "dyno_torque": 181.6, "corrected_torque": 208.6, "bsfc": 249.5, "fuel_consumption": 5.93, "water_temp_in": 84.0, "water_temp_out": 88.5, "oil_temp": 96.3, "oil_press": 421.0, "afr": 13.55, "in_air_press": 0.35, "in_air_temp": 26.2, "ex_gas_temp": 759.0, "back_press": 6.5, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 403.24, "crank_press": 0.3, "atm_press": 90.92, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4600, "acc": 100.1, "k": 1.1484, "power": 87.63, "corrected_power": 100.6, "dyno_torque": 181.9, "corrected_torque": 208.9, "bsfc": 252.3, "fuel_consumption": 6.14, "water_temp_in": 84.0, "water_temp_out": 88.6, "oil_temp": 96.7, "oil_press": 424.0, "afr": 13.5, "in_air_press": 0.35, "in_air_temp": 26.2, "ex_gas_temp": 764.0, "back_press": 6.8, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 403.1, "crank_press": 0.3, "atm_press": 90.92, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4700, "acc": 100.1, "k": 1.1484, "power": 89.63, "corrected_power": 102.9, "dyno_torque": 182.1, "corrected_torque": 209.1, "bsfc": 255.4, "fuel_consumption": 6.36, "water_temp_in": 84.0, "water_temp_out": 88.8, "oil_temp": 97.1, "oil_press": 426.0, "afr": 13.45, "in_air_press": 0.36, "in_air_temp": 26.3, "ex_gas_temp": 769.0, "back_press": 7.1, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 402.96, "crank_press": 0.3, "atm_press": 90.91, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4800, "acc": 100.1, "k": 1.1484, "power": 91.59, "corrected_power": 105.2, "dyno_torque": 182.2, "corrected_torque": 209.2, "bsfc": 258.4, "fuel_consumption": 6.57, "water_temp_in": 84.0, "water_temp_out": 88.9, "oil_temp": 97.5, "oil_press": 429.0, "afr": 13.4, "in_air_press": 0.36, "in_air_temp": 26.3, "ex_gas_temp": 774.0, "back_press": 7.4, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 402.82, "crank_press": 0.31, "atm_press": 90.91, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 4900, "acc": 100.1, "k": 1.1484, "power": 93.29, "corrected_power": 107.1, "dyno_torque": 181.8, "corrected_torque": 208.8, "bsfc": 261.7, "fuel_consumption": 6.78, "water_temp_in": 84.0, "water_temp_out": 89.0, "oil_temp": 97.8, "oil_press": 431.0, "afr": 13.35, "in_air_press": 0.37, "in_air_temp": 26.3, "ex_gas_temp": 779.0, "back_press": 7.7, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 402.67, "crank_press": 0.31, "atm_press": 90.91, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 5000, "acc": 100.1, "k": 1.1484, "power": 94.88, "corrected_power": 109.0, "dyno_torque": 181.2, "corrected_torque": 208.1, "bsfc": 265.2, "fuel_consumption": 6.99, "water_temp_in": 84.0, "water_temp_out": 89.2, "oil_temp": 98.2, "oil_press": 433.0, "afr": 13.29, "in_air_press": 0.37, "in_air_temp": 26.4, "ex_gas_temp": 784.0, "back_press": 8.0, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 402.53, "crank_press": 0.31, "atm_press": 90.91, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 5100, "acc": 100.1, "k": 1.1484, "power": 96.35, "corrected_power": 110.7, "dyno_torque": 180.4, "corrected_torque": 207.2, "bsfc": 269.0, "fuel_consumption": 7.2, "water_temp_in": 84.0, "water_temp_out": 89.3, "oil_temp": 98.6, "oil_press": 435.0, "afr": 13.24, "in_air_press": 0.38, "in_air_temp": 26.4, "ex_gas_temp": 789.0, "back_press": 8.4, "td_temp": 27.0, "tw_temp": 22.1, "fuel_press": 402.38, "crank_press": 0.32, "atm_press": 90.91, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 5500, "acc": 100.1, "k": 1.1484, "power": 102.07, "corrected_power": 117.2, "dyno_torque": 177.2, "corrected_torque": 203.5, "bsfc": 282.0, "fuel_consumption": 8.0, "water_temp_in": 84.0, "water_temp_out": 89.9, "oil_temp": 100.1, "oil_press": 442.0, "afr": 13.01, "in_air_press": 0.4, "in_air_temp": 26.6, "ex_gas_temp": 807.0, "back_press": 9.8, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 401.77, "crank_press": 0.33, "atm_press": 90.9, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 5900, "acc": 100.1, "k": 1.1484, "power": 106.52, "corrected_power": 122.3, "dyno_torque": 172.4, "corrected_torque": 198.0, "bsfc": 296.5, "fuel_consumption": 8.77, "water_temp_in": 84.0, "water_temp_out": 90.4, "oil_temp": 101.6, "oil_press": 447.0, "afr": 12.75, "in_air_press": 0.42, "in_air_temp": 26.7, "ex_gas_temp": 825.0, "back_press": 11.3, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 401.13, "crank_press": 0.34, "atm_press": 90.89, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6200, "acc": 100.1, "k": 1.1484, "power": 108.3, "corrected_power": 124.3, "dyno_torque": 166.8, "corrected_torque": 191.5, "bsfc": 308.2, "fuel_consumption": 9.27, "water_temp_in": 84.0, "water_temp_out": 90.8, "oil_temp": 102.7, "oil_press": 451.0, "afr": 12.55, "in_air_press": 0.43, "in_air_temp": 26.8, "ex_gas_temp": 839.0, "back_press": 12.6, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 400.63, "crank_press": 0.35, "atm_press": 90.89, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6300, "acc": 100.1, "k": 1.1484, "power": 108.47, "corrected_power": 124.6, "dyno_torque": 164.4, "corrected_torque": 188.8, "bsfc": 312.4, "fuel_consumption": 9.41, "water_temp_in": 84.0, "water_temp_out": 91.0, "oil_temp": 103.1, "oil_press": 452.0, "afr": 12.49, "in_air_press": 0.44, "in_air_temp": 26.9, "ex_gas_temp": 843.0, "back_press": 13.0, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 400.46, "crank_press": 0.36, "atm_press": 90.89, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6400, "acc": 100.1, "k": 1.1484, "power": 108.65, "corrected_power": 124.8, "dyno_torque": 162.1, "corrected_torque": 186.2, "bsfc": 317.0, "fuel_consumption": 9.57, "water_temp_in": 84.0, "water_temp_out": 91.1, "oil_temp": 103.4, "oil_press": 453.0, "afr": 12.42, "in_air_press": 0.44, "in_air_temp": 26.9, "ex_gas_temp": 847.0, "back_press": 13.4, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 400.28, "crank_press": 0.36, "atm_press": 90.88, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6500, "acc": 100.1, "k": 1.1484, "power": 108.71, "corrected_power": 124.8, "dyno_torque": 159.7, "corrected_torque": 183.4, "bsfc": 321.8, "fuel_consumption": 9.72, "water_temp_in": 84.0, "water_temp_out": 91.2, "oil_temp": 103.8, "oil_press": 454.0, "afr": 12.35, "in_air_press": 0.45, "in_air_temp": 26.9, "ex_gas_temp": 852.0, "back_press": 13.9, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 400.11, "crank_press": 0.36, "atm_press": 90.88, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6600, "acc": 100.1, "k": 1.1484, "power": 109.0, "corrected_power": 125.2, "dyno_torque": 157.7, "corrected_torque": 181.1, "bsfc": 326.4, "fuel_consumption": 9.88, "water_temp_in": 84.0, "water_temp_out": 91.4, "oil_temp": 104.1, "oil_press": 454.0, "afr": 12.27, "in_air_press": 0.45, "in_air_temp": 27.0, "ex_gas_temp": 856.0, "back_press": 14.3, "td_temp": 26.4, "tw_temp": 22.1, "fuel_press": 399.94, "crank_press": 0.37, "atm_press": 90.88, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}, {"rpm": 6700, "acc": 100.1, "k": 1.1484, "power": 107.84, "corrected_power": 123.8, "dyno_torque": 153.7, "corrected_torque": 176.5, "bsfc": 330.5, "fuel_consumption": 9.9, "water_temp_in": 84.0, "water_temp_out": 91.5, "oil_temp": 104.5, "oil_press": 455.0, "afr": 12.2, "in_air_press": 0.46, "in_air_temp": 27.0, "ex_gas_temp": 860.0, "back_press": 14.8, "td_temp": 26.3, "tw_temp": 22.1, "fuel_press": 399.76, "crank_press": 0.37, "atm_press": 90.88, "date": "2025-06-24", "ref_no": 54, "run_name": "Run 54 (Cylinder block new die)"}], "55": [{"rpm": 1200, "acc": 100.2, "k": 1.1484, "power": 16.69, "corrected_power": 19.2, "dyno_torque": 132.8, "corrected_torque": 152.5, "bsfc": 266.8, "fuel_consumption": 1.24, "water_temp_in": 80.0, "water_temp_out": 84.0, "oil_temp": 80.0, "oil_press": 175.0, "afr": 14.45, "in_air_press": 0.18, "in_air_temp": 25.2, "ex_gas_temp": 504.0, "back_press": 1.4, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 406.26, "crank_press": 0.19, "atm_press": 90.85, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 1600, "acc": 100.2, "k": 1.1484, "power": 24.78, "corrected_power": 28.5, "dyno_torque": 147.9, "corrected_torque": 169.8, "bsfc": 240.5, "fuel_consumption": 1.66, "water_temp_in": 80.0, "water_temp_out": 84.5, "oil_temp": 83.0, "oil_press": 233.0, "afr": 14.43, "in_air_press": 0.2, "in_air_temp": 25.3, "ex_gas_temp": 569.0, "back_press": 1.5, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 406.13, "crank_press": 0.2, "atm_press": 90.85, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 2000, "acc": 100.2, "k": 1.1484, "power": 33.24, "corrected_power": 38.2, "dyno_torque": 158.7, "corrected_torque": 182.3, "bsfc": 224.9, "fuel_consumption": 2.08, "water_temp_in": 80.0, "water_temp_out": 85.1, "oil_temp": 85.2, "oil_press": 279.0, "afr": 14.38, "in_air_press": 0.22, "in_air_temp": 25.5, "ex_gas_temp": 606.0, "back_press": 1.7, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 405.9, "crank_press": 0.22, "atm_press": 90.85, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 2400, "acc": 100.2, "k": 1.1484, "power": 41.7, "corrected_power": 47.9, "dyno_torque": 165.9, "corrected_torque": 190.5, "bsfc": 218.2, "fuel_consumption": 2.53, "water_temp_in": 80.0, "water_temp_out": 85.6, "oil_temp": 87.2, "oil_press": 317.0, "afr": 14.3, "in_air_press": 0.24, "in_air_temp": 25.6, "ex_gas_temp": 636.0, "back_press": 2.1, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 405.6, "crank_press": 0.23, "atm_press": 90.85, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 2800, "acc": 100.2, "k": 1.1484, "power": 50.0, "corrected_power": 57.4, "dyno_torque": 170.5, "corrected_torque": 195.8, "bsfc": 214.6, "fuel_consumption": 2.98, "water_temp_in": 80.0, "water_temp_out": 86.2, "oil_temp": 89.1, "oil_press": 347.0, "afr": 14.21, "in_air_press": 0.26, "in_air_temp": 25.8, "ex_gas_temp": 664.0, "back_press": 2.7, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 405.24, "crank_press": 0.24, "atm_press": 90.84, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 3200, "acc": 100.2, "k": 1.1484, "power": 58.48, "corrected_power": 67.2, "dyno_torque": 174.5, "corrected_torque": 200.4, "bsfc": 216.4, "fuel_consumption": 3.52, "water_temp_in": 80.0, "water_temp_out": 86.7, "oil_temp": 90.9, "oil_press": 371.0, "afr": 14.09, "in_air_press": 0.28, "in_air_temp": 25.9, "ex_gas_temp": 688.0, "back_press": 3.4, "td_temp": 27.3, "tw_temp": 22.1, "fuel_press": 404.83, "crank_press": 0.26, "atm_press": 90.84, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 3600, "acc": 100.2, "k": 1.1484, "power": 67.18, "corrected_power": 77.2, "dyno_torque": 178.2, "corrected_torque": 204.7, "bsfc": 222.9, "fuel_consumption": 4.16, "water_temp_in": 80.0, "water_temp_out": 87.3, "oil_temp": 92.6, "oil_press": 390.0, "afr": 13.94, "in_air_press": 0.3, "in_air_temp": 26.1, "ex_gas_temp": 712.0, "back_press": 4.2, "td_temp": 27.4, "tw_temp": 22.1, "fuel_press": 404.39, "crank_press": 0.27, "atm_press": 90.83, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4000, "acc": 100.2, "k": 1.1484, "power": 75.78, "corrected_power": 87.0, "dyno_torque": 180.9, "corrected_torque": 207.8, "bsfc": 233.4, "fuel_consumption": 4.91, "water_temp_in": 80.0, "water_temp_out": 87.8, "oil_temp": 94.3, "oil_press": 406.0, "afr": 13.78, "in_air_press": 0.32, "in_air_temp": 26.2, "ex_gas_temp": 734.0, "back_press": 5.1, "td_temp": 27.4, "tw_temp": 22.1, "fuel_press": 403.9, "crank_press": 0.28, "atm_press": 90.83, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4400, "acc": 100.1, "k": 1.1484, "power": 84.05, "corrected_power": 96.5, "dyno_torque": 182.4, "corrected_torque": 209.5, "bsfc": 245.2, "fuel_consumption": 5.72, "water_temp_in": 84.0, "water_temp_out": 88.4, "oil_temp": 95.9, "oil_press": 419.0, "afr": 13.6, "in_air_press": 0.34, "in_air_temp": 26.4, "ex_gas_temp": 754.0, "back_press": 6.2, "td_temp": 27.4, "tw_temp": 22.1, "fuel_press": 403.38, "crank_press": 0.29, "atm_press": 90.82, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4500, "acc": 100.1, "k": 1.1484, "power": 86.15, "corrected_power": 98.9, "dyno_torque": 182.8, "corrected_torque": 209.9, "bsfc": 247.9, "fuel_consumption": 5.93, "water_temp_in": 84.0, "water_temp_out": 88.5, "oil_temp": 96.3, "oil_press": 421.0, "afr": 13.55, "in_air_press": 0.35, "in_air_temp": 26.4, "ex_gas_temp": 759.0, "back_press": 6.5, "td_temp": 27.4, "tw_temp": 22.1, "fuel_press": 403.24, "crank_press": 0.3, "atm_press": 90.82, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4600, "acc": 100.1, "k": 1.1484, "power": 88.16, "corrected_power": 101.3, "dyno_torque": 183.0, "corrected_torque": 210.2, "bsfc": 250.7, "fuel_consumption": 6.14, "water_temp_in": 84.0, "water_temp_out": 88.6, "oil_temp": 96.7, "oil_press": 424.0, "afr": 13.5, "in_air_press": 0.35, "in_air_temp": 26.4, "ex_gas_temp": 764.0, "back_press": 6.8, "td_temp": 27.3, "tw_temp": 22.1, "fuel_press": 403.1, "crank_press": 0.3, "atm_press": 90.82, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4700, "acc": 100.1, "k": 1.1484, "power": 90.17, "corrected_power": 103.6, "dyno_torque": 183.2, "corrected_torque": 210.4, "bsfc": 253.8, "fuel_consumption": 6.36, "water_temp_in": 84.0, "water_temp_out": 88.8, "oil_temp": 97.1, "oil_press": 426.0, "afr": 13.45, "in_air_press": 0.36, "in_air_temp": 26.5, "ex_gas_temp": 769.0, "back_press": 7.1, "td_temp": 27.3, "tw_temp": 22.1, "fuel_press": 402.96, "crank_press": 0.3, "atm_press": 90.81, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4800, "acc": 100.1, "k": 1.1484, "power": 92.14, "corrected_power": 105.8, "dyno_torque": 183.3, "corrected_torque": 210.5, "bsfc": 256.8, "fuel_consumption": 6.57, "water_temp_in": 84.0, "water_temp_out": 88.9, "oil_temp": 97.5, "oil_press": 429.0, "afr": 13.4, "in_air_press": 0.36, "in_air_temp": 26.5, "ex_gas_temp": 774.0, "back_press": 7.4, "td_temp": 27.3, "tw_temp": 22.1, "fuel_press": 402.82, "crank_press": 0.31, "atm_press": 90.81, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 4900, "acc": 100.1, "k": 1.1484, "power": 93.91, "corrected_power": 107.8, "dyno_torque": 183.0, "corrected_torque": 210.1, "bsfc": 260.1, "fuel_consumption": 6.78, "water_temp_in": 84.0, "water_temp_out": 89.0, "oil_temp": 97.8, "oil_press": 431.0, "afr": 13.35, "in_air_press": 0.37, "in_air_temp": 26.5, "ex_gas_temp": 779.0, "back_press": 7.7, "td_temp": 27.3, "tw_temp": 22.1, "fuel_press": 402.67, "crank_press": 0.31, "atm_press": 90.81, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 5000, "acc": 100.1, "k": 1.1484, "power": 95.46, "corrected_power": 109.6, "dyno_torque": 182.3, "corrected_torque": 209.4, "bsfc": 263.6, "fuel_consumption": 6.99, "water_temp_in": 84.0, "water_temp_out": 89.2, "oil_temp": 98.2, "oil_press": 433.0, "afr": 13.29, "in_air_press": 0.37, "in_air_temp": 26.6, "ex_gas_temp": 784.0, "back_press": 8.0, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 402.53, "crank_press": 0.31, "atm_press": 90.81, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 5100, "acc": 100.1, "k": 1.1484, "power": 96.99, "corrected_power": 111.4, "dyno_torque": 181.6, "corrected_torque": 208.5, "bsfc": 267.4, "fuel_consumption": 7.2, "water_temp_in": 84.0, "water_temp_out": 89.3, "oil_temp": 98.6, "oil_press": 435.0, "afr": 13.24, "in_air_press": 0.38, "in_air_temp": 26.6, "ex_gas_temp": 789.0, "back_press": 8.4, "td_temp": 27.2, "tw_temp": 22.1, "fuel_press": 402.38, "crank_press": 0.32, "atm_press": 90.81, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 5500, "acc": 100.1, "k": 1.1484, "power": 102.7, "corrected_power": 118.0, "dyno_torque": 178.3, "corrected_torque": 204.8, "bsfc": 280.4, "fuel_consumption": 8.0, "water_temp_in": 84.0, "water_temp_out": 89.9, "oil_temp": 100.1, "oil_press": 442.0, "afr": 13.01, "in_air_press": 0.4, "in_air_temp": 26.8, "ex_gas_temp": 807.0, "back_press": 9.8, "td_temp": 27.1, "tw_temp": 22.1, "fuel_press": 401.77, "crank_press": 0.33, "atm_press": 90.8, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 5900, "acc": 100.1, "k": 1.1484, "power": 107.2, "corrected_power": 123.1, "dyno_torque": 173.5, "corrected_torque": 199.3, "bsfc": 294.9, "fuel_consumption": 8.78, "water_temp_in": 84.0, "water_temp_out": 90.4, "oil_temp": 101.6, "oil_press": 447.0, "afr": 12.75, "in_air_press": 0.42, "in_air_temp": 26.9, "ex_gas_temp": 825.0, "back_press": 11.3, "td_temp": 26.9, "tw_temp": 22.1, "fuel_press": 401.13, "crank_press": 0.34, "atm_press": 90.79, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6200, "acc": 100.1, "k": 1.1484, "power": 109.02, "corrected_power": 125.2, "dyno_torque": 167.9, "corrected_torque": 192.8, "bsfc": 306.6, "fuel_consumption": 9.28, "water_temp_in": 84.0, "water_temp_out": 90.8, "oil_temp": 102.7, "oil_press": 451.0, "afr": 12.55, "in_air_press": 0.43, "in_air_temp": 27.0, "ex_gas_temp": 839.0, "back_press": 12.6, "td_temp": 26.8, "tw_temp": 22.1, "fuel_press": 400.63, "crank_press": 0.35, "atm_press": 90.79, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6300, "acc": 100.1, "k": 1.1484, "power": 109.19, "corrected_power": 125.4, "dyno_torque": 165.5, "corrected_torque": 190.1, "bsfc": 310.8, "fuel_consumption": 9.43, "water_temp_in": 84.0, "water_temp_out": 91.0, "oil_temp": 103.1, "oil_press": 452.0, "afr": 12.49, "in_air_press": 0.44, "in_air_temp": 27.1, "ex_gas_temp": 843.0, "back_press": 13.0, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 400.46, "crank_press": 0.36, "atm_press": 90.79, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6400, "acc": 100.1, "k": 1.1484, "power": 109.45, "corrected_power": 125.7, "dyno_torque": 163.3, "corrected_torque": 187.5, "bsfc": 315.4, "fuel_consumption": 9.59, "water_temp_in": 84.0, "water_temp_out": 91.1, "oil_temp": 103.4, "oil_press": 453.0, "afr": 12.42, "in_air_press": 0.44, "in_air_temp": 27.1, "ex_gas_temp": 847.0, "back_press": 13.4, "td_temp": 26.7, "tw_temp": 22.1, "fuel_press": 400.28, "crank_press": 0.36, "atm_press": 90.78, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6500, "acc": 100.1, "k": 1.1484, "power": 109.46, "corrected_power": 125.7, "dyno_torque": 160.8, "corrected_torque": 184.7, "bsfc": 320.2, "fuel_consumption": 9.74, "water_temp_in": 84.0, "water_temp_out": 91.2, "oil_temp": 103.8, "oil_press": 454.0, "afr": 12.35, "in_air_press": 0.45, "in_air_temp": 27.1, "ex_gas_temp": 852.0, "back_press": 13.9, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 400.11, "crank_press": 0.36, "atm_press": 90.78, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6600, "acc": 100.1, "k": 1.1484, "power": 109.76, "corrected_power": 126.1, "dyno_torque": 158.8, "corrected_torque": 182.4, "bsfc": 324.8, "fuel_consumption": 9.9, "water_temp_in": 84.0, "water_temp_out": 91.4, "oil_temp": 104.1, "oil_press": 454.0, "afr": 12.27, "in_air_press": 0.45, "in_air_temp": 27.2, "ex_gas_temp": 856.0, "back_press": 14.3, "td_temp": 26.6, "tw_temp": 22.1, "fuel_press": 399.94, "crank_press": 0.37, "atm_press": 90.78, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}, {"rpm": 6700, "acc": 100.1, "k": 1.1484, "power": 108.62, "corrected_power": 124.8, "dyno_torque": 154.8, "corrected_torque": 177.8, "bsfc": 328.9, "fuel_consumption": 9.92, "water_temp_in": 84.0, "water_temp_out": 91.5, "oil_temp": 104.5, "oil_press": 455.0, "afr": 12.2, "in_air_press": 0.46, "in_air_temp": 27.2, "ex_gas_temp": 860.0, "back_press": 14.8, "td_temp": 26.5, "tw_temp": 22.1, "fuel_press": 399.76, "crank_press": 0.37, "atm_press": 90.78, "date": "2025-06-30", "ref_no": 55, "run_name": "Run 55 (Final Sign-off)"}]}};
+
+    let mainChart = null;
+    let monthChart = null;
+    let thermalChart = null;
+    let fluidPressChart = null;
+    let combustionChart = null;
+    let atmChart = null;
+
+    // Palette
+    const colors = {
+      red: '#d9381e',
+      orange: '#ea580c',
+      blue: '#1e40af',
+      cyan: '#0284c7',
+      green: '#059669',
+      purple: '#7c3aed',
+      pink: '#db2777',
+      gray: '#64748b',
+      amber: '#d97706',
+      emerald: '#10b981',
+      indigo: '#4f46e5',
+      rose: '#e11d48'
+    };
+
+    function init() {
+      renderKpis(54);
+      renderTable(54);
+      renderMainChart();
+      renderMonthTrendChart();
+      renderSubsystemCharts(54);
+    }
+
+    function renderKpis(ref) {
+      const run = rawData.runs_data[ref] || rawData.runs_data[54];
+      const maxPower = Math.max(...run.map(r => r.corrected_power));
+      const powerRpm = run.find(r => r.corrected_power === maxPower).rpm;
+      const maxTorque = Math.max(...run.map(r => r.corrected_torque));
+      const torqueRpm = run.find(r => r.corrected_torque === maxTorque).rpm;
+      const minBsfc = Math.min(...run.map(r => r.bsfc));
+      const bsfcRpm = run.find(r => r.bsfc === minBsfc).rpm;
+      const maxEgt = Math.max(...run.map(r => r.ex_gas_temp));
+
+      document.getElementById('kpiPower').innerText = maxPower.toFixed(1) + ' kW';
+      document.getElementById('kpiPowerRpm').innerText = `@ ${powerRpm.toLocaleString()} RPM (${(maxPower * 1.35962).toFixed(1)} PS)`;
+      document.getElementById('kpiTorque').innerText = maxTorque.toFixed(1) + ' N·m';
+      document.getElementById('kpiTorqueRpm').innerText = `@ ${torqueRpm.toLocaleString()} RPM`;
+      document.getElementById('kpiBsfc').innerText = minBsfc.toFixed(1) + ' g/kW·h';
+      document.getElementById('kpiBsfcRpm').innerText = `@ ${bsfcRpm.toLocaleString()} RPM (~40% ηth)`;
+      document.getElementById('kpiEgt').innerText = maxEgt.toFixed(0) + ' ℃';
+    }
+
+    function renderTable(ref) {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      const run = rawData.runs_data[ref] || rawData.runs_data[54];
+
+      run.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="font-bold text-center">${r.rpm}</td>
+          <td>${r.acc.toFixed(1)}</td>
+          <td>${r.k.toFixed(4)}</td>
+          <td class="val-highlight">${r.power.toFixed(2)}</td>
+          <td class="val-highlight" style="color:#d9381e;">${r.corrected_power.toFixed(1)}</td>
+          <td class="val-highlight">${r.dyno_torque.toFixed(1)}</td>
+          <td class="val-highlight" style="color:#1e40af;">${r.corrected_torque.toFixed(1)}</td>
+          <td style="color:#059669; font-weight:600;">${r.bsfc.toFixed(2)}</td>
+          <td>${r.fuel_consumption.toFixed(2)}</td>
+          <td>${r.water_temp_in.toFixed(1)}</td>
+          <td>${r.water_temp_out.toFixed(1)}</td>
+          <td>${r.oil_temp.toFixed(1)}</td>
+          <td>${r.oil_press.toFixed(0)}</td>
+          <td style="color:#ea580c; font-weight:600;">${r.afr.toFixed(2)}</td>
+          <td>${r.in_air_press.toFixed(2)}</td>
+          <td>${r.in_air_temp.toFixed(1)}</td>
+          <td style="color:#991b1b; font-weight:600;">${r.ex_gas_temp.toFixed(0)}</td>
+          <td>${r.back_press.toFixed(1)}</td>
+          <td>${r.td_temp.toFixed(1)}</td>
+          <td>${r.tw_temp.toFixed(1)}</td>
+          <td>${r.fuel_press.toFixed(2)}</td>
+          <td>${r.crank_press.toFixed(2)}</td>
+          <td>${r.atm_press.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterTable() {
+      const query = document.getElementById('tableSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#tableBody tr');
+      rows.forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(query) ? '' : 'none';
+      });
+    }
+
+    function onFilterChange() {
+      const runVal = document.getElementById('runSelect').value;
+      const ref = (runVal === 'all') ? 54 : parseInt(runVal);
+      renderKpis(ref);
+      renderTable(ref);
+      renderMainChart();
+      renderSubsystemCharts(ref);
+    }
+
+    function resetViews() {
+      document.getElementById('runSelect').value = '54';
+      document.getElementById('paramSelect').value = 'dyno_master';
+      onFilterChange();
+    }
+
+    function renderMainChart() {
+      const runVal = document.getElementById('runSelect').value;
+      const paramVal = document.getElementById('paramSelect').value;
+      const ctx = document.getElementById('mainChartCanvas').getContext('2d');
+
+      const isAll = (runVal === 'all');
+      const badge = document.getElementById('chartFilterBadge');
+      badge.innerText = isAll ? '🌟 All Runs Month Overlay' : (runVal === '54' ? 'Run 54 (2025-06-24) [Current]' : `Run ${runVal}`);
+
+      if (mainChart) mainChart.destroy();
+
+      const rpms = rawData.rpms;
+      let datasets = [];
+      let scales = {
+        x: { title: { display: true, text: 'Engine Speed (RPM)', font: { weight: 'bold', size: 13 } } }
+      };
+
+      if (paramVal === 'dyno_master') {
+        document.getElementById('mainChartTitle').innerText = 'Master Engine Dyno Curve: RPM vs Power & Torque (Dual Axis)';
+        document.getElementById('mainChartSub').innerText = 'Wide Open Throttle (WOT) characteristic curve showing both raw dyno and ISO 1585 corrected values';
+
+        scales.y = {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: { display: true, text: 'Power (kW)', color: colors.red, font: { weight: 'bold', size: 13 } },
+          ticks: { color: colors.red }
+        };
+        scales.y1 = {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Torque (N·m)', color: colors.blue, font: { weight: 'bold', size: 13 } },
+          ticks: { color: colors.blue }
+        };
+
+        if (!isAll) {
+          const run = rawData.runs_data[runVal];
+          datasets.push(
+            {
+              label: 'Corrected Power (kW)',
+              data: run.map(r => r.corrected_power),
+              borderColor: colors.red,
+              backgroundColor: 'rgba(217, 56, 30, 0.08)',
+              borderWidth: 3,
+              fill: true,
+              yAxisID: 'y',
+              tension: 0.3,
+              pointRadius: 4
+            },
+            {
+              label: 'Dyno Power (kW)',
+              data: run.map(r => r.power),
+              borderColor: colors.orange,
+              borderWidth: 2,
+              borderDash: [5, 5],
+              yAxisID: 'y',
+              tension: 0.3,
+              pointRadius: 0
+            },
+            {
+              label: 'Corrected Torque (N·m)',
+              data: run.map(r => r.corrected_torque),
+              borderColor: colors.blue,
+              backgroundColor: 'rgba(30, 64, 175, 0.05)',
+              borderWidth: 3,
+              fill: true,
+              yAxisID: 'y1',
+              tension: 0.3,
+              pointRadius: 4
+            },
+            {
+              label: 'Dyno Torque (N·m)',
+              data: run.map(r => r.dyno_torque),
+              borderColor: colors.cyan,
+              borderWidth: 2,
+              borderDash: [5, 5],
+              yAxisID: 'y1',
+              tension: 0.3,
+              pointRadius: 0
+            }
+          );
+        } else {
+          // Overlay all runs for Power & Torque
+          const runColors = [colors.gray, colors.purple, colors.cyan, colors.red, colors.emerald];
+          rawData.runs_meta.forEach((meta, idx) => {
+            const rData = rawData.runs_data[meta.ref];
+            datasets.push({
+              label: `${meta.name} - Power (kW)`,
+              data: rData.map(r => r.corrected_power),
+              borderColor: runColors[idx],
+              borderWidth: meta.ref === 54 ? 3.5 : 1.8,
+              yAxisID: 'y',
+              tension: 0.3,
+              pointRadius: meta.ref === 54 ? 4 : 2
+            });
+          });
+        }
+      } else {
+        // Specific Parameter selected
+        const paramConfigs = {
+          power: { title: 'RPM vs Power & Corrected Power', unit: 'Power (kW)', keys: ['power', 'corrected_power'], labels: ['Dyno Power (kW)', 'Corrected Power (kW)'], c: [colors.orange, colors.red] },
+          torque: { title: 'RPM vs Torque & Corrected Torque', unit: 'Torque (N·m)', keys: ['dyno_torque', 'corrected_torque'], labels: ['Dyno Torque (N·m)', 'Corrected Torque (N·m)'], c: [colors.cyan, colors.blue] },
+          bsfc: { title: 'RPM vs Fuel Consumption Ratio (BSFC)', unit: 'BSFC (g/kW·h)', keys: ['bsfc'], labels: ['BSFC (g/kW·h)'], c: [colors.green] },
+          fuel_consumption: { title: 'RPM vs Fuel Flow Rate', unit: 'Fuel Flow (g/s)', keys: ['fuel_consumption'], labels: ['Fuel Rate (g/s)'], c: [colors.purple] },
+          water_temp: { title: 'RPM vs Coolant Water Temperature', unit: 'Temperature (℃)', keys: ['water_temp_in', 'water_temp_out'], labels: ['Water Temp IN (℃)', 'Water Temp OUT (℃)'], c: [colors.cyan, colors.red] },
+          oil_system: { title: 'RPM vs Oil Temperature & Pressure', unit: 'Oil Sump Temp (℃)', keys: ['oil_temp', 'oil_press'], labels: ['Oil Temp (℃)', 'Oil Press (kPa)'], c: [colors.orange, colors.gray], dual: true },
+          afr: { title: 'RPM vs Air Fuel Ratio (AFR)', unit: 'AFR (Air/Fuel Ratio)', keys: ['afr'], labels: ['Air Fuel Ratio (AFR)'], c: [colors.amber] },
+          ex_gas_temp: { title: 'RPM vs Exhaust Gas Temperature (EGT)', unit: 'Exhaust Temp (℃)', keys: ['ex_gas_temp'], labels: ['Ex-gas Temp (℃)'], c: [colors.rose] },
+          back_press: { title: 'RPM vs Exhaust Back Pressure', unit: 'Back Pressure (kPa)', keys: ['back_press'], labels: ['Back Pressure (kPa)'], c: [colors.purple] },
+          air_system: { title: 'RPM vs Intake Air Temperature & Depression', unit: 'Temperature (℃)', keys: ['in_air_temp', 'in_air_press'], labels: ['In Air Temp (℃)', 'In Air Press (kPa)'], c: [colors.emerald, colors.orange], dual: true },
+          pressures: { title: 'RPM vs Fuel Rail & Crankcase Pressure', unit: 'Pressure (kPa)', keys: ['fuel_press', 'crank_press'], labels: ['Fuel Press (kPa)', 'Crank Press (kPa)'], c: [colors.blue, colors.pink], dual: true },
+          atm_press: { title: 'RPM vs Test Cell Atmospheric Barometric Pressure', unit: 'Atmospheric Press (kPa)', keys: ['atm_press'], labels: ['Atmospheric Press (kPa)'], c: [colors.indigo] }
+        };
+
+        const cfg = paramConfigs[paramVal];
+        document.getElementById('mainChartTitle').innerText = cfg.title;
+        document.getElementById('mainChartSub').innerText = `Engine response for ${cfg.labels.join(' and ')} across full RPM spectrum`;
+
+        if (cfg.dual && !isAll) {
+          scales.y = {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: cfg.labels[0], color: cfg.c[0], font: { weight: 'bold' } }
+          };
+          scales.y1 = {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: cfg.labels[1], color: cfg.c[1], font: { weight: 'bold' } }
+          };
+          const run = rawData.runs_data[runVal];
+          datasets.push(
+            { label: cfg.labels[0], data: run.map(r => r[cfg.keys[0]]), borderColor: cfg.c[0], borderWidth: 3, yAxisID: 'y', tension: 0.3, pointRadius: 4 },
+            { label: cfg.labels[1], data: run.map(r => r[cfg.keys[1]]), borderColor: cfg.c[1], borderWidth: 3, yAxisID: 'y1', tension: 0.3, pointRadius: 4 }
+          );
+        } else {
+          scales.y = {
+            type: 'linear',
+            title: { display: true, text: cfg.unit, font: { weight: 'bold' } }
+          };
+          if (!isAll) {
+            const run = rawData.runs_data[runVal];
+            cfg.keys.forEach((k, ki) => {
+              datasets.push({
+                label: cfg.labels[ki],
+                data: run.map(r => r[k]),
+                borderColor: cfg.c[ki],
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 4
+              });
+            });
+          } else {
+            // Overlay all runs for the primary key
+            const runColors = [colors.gray, colors.purple, colors.cyan, colors.red, colors.emerald];
+            const pKey = cfg.keys[cfg.keys.length - 1]; // pick corrected or main key
+            rawData.runs_meta.forEach((meta, idx) => {
+              const rData = rawData.runs_data[meta.ref];
+              datasets.push({
+                label: `${meta.name} (${pKey})`,
+                data: rData.map(r => r[pKey]),
+                borderColor: runColors[idx],
+                borderWidth: meta.ref === 54 ? 3.5 : 2,
+                tension: 0.3,
+                pointRadius: meta.ref === 54 ? 4 : 2
+              });
+            });
+          }
+        }
+      }
+
+      mainChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: rpms,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { weight: '600' } } },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleFont: { weight: 'bold' },
+              padding: 12,
+              callbacks: {
+                title: items => `Engine Speed: ${items[0].label} RPM`
+              }
+            }
+          },
+          scales: scales
+        }
+      });
+    }
+
+    function renderMonthTrendChart() {
+      const ctx = document.getElementById('monthTrendCanvas').getContext('2d');
+      const kpis = rawData.month_kpis;
+      const labels = kpis.map(k => `${k.name.split(' ')[0]} (${k.date.substring(5)})`);
+
+      monthChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Peak Corrected Power (kW)',
+              data: kpis.map(k => k.peak_power_kw),
+              borderColor: colors.red,
+              backgroundColor: colors.red,
+              borderWidth: 3,
+              pointRadius: 6,
+              yAxisID: 'y',
+              tension: 0.2
+            },
+            {
+              label: 'Peak Corrected Torque (N·m)',
+              data: kpis.map(k => k.peak_torque_nm),
+              borderColor: colors.blue,
+              backgroundColor: colors.blue,
+              borderWidth: 3,
+              pointRadius: 6,
+              yAxisID: 'y1',
+              tension: 0.2
+            },
+            {
+              label: 'Best BSFC (g/kW·h) [Lower is Better]',
+              data: kpis.map(k => k.best_bsfc_gkwh),
+              borderColor: colors.green,
+              backgroundColor: colors.green,
+              borderWidth: 2,
+              borderDash: [5, 5],
+              pointRadius: 5,
+              yAxisID: 'y2',
+              tension: 0.2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Peak Power (kW)', color: colors.red, font: { weight: 'bold' } },
+              suggestedMin: 120,
+              suggestedMax: 128
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: 'Peak Torque (N·m)', color: colors.blue, font: { weight: 'bold' } },
+              suggestedMin: 204,
+              suggestedMax: 212
+            },
+            y2: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              display: false,
+              suggestedMin: 210,
+              suggestedMax: 225
+            }
+          }
+        }
+      });
+    }
+
+    function renderSubsystemCharts(ref) {
+      const run = rawData.runs_data[ref] || rawData.runs_data[54];
+      const rpms = rawData.rpms;
+
+      // 1. Thermal
+      if (thermalChart) thermalChart.destroy();
+      thermalChart = new Chart(document.getElementById('subThermalCanvas').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: rpms,
+          datasets: [
+            { label: 'Water Temp Out (℃)', data: run.map(r => r.water_temp_out), borderColor: colors.red, borderWidth: 2, tension: 0.3, pointRadius: 0 },
+            { label: 'Water Temp In (℃)', data: run.map(r => r.water_temp_in), borderColor: colors.cyan, borderWidth: 2, tension: 0.3, pointRadius: 0 },
+            { label: 'Oil Temp (℃)', data: run.map(r => r.oil_temp), borderColor: colors.amber, borderWidth: 2.5, tension: 0.3, pointRadius: 0 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: '℃' } } } }
+      });
+
+      // 2. Fluid Pressures
+      if (fluidPressChart) fluidPressChart.destroy();
+      fluidPressChart = new Chart(document.getElementById('subFluidPressCanvas').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: rpms,
+          datasets: [
+            { label: 'Oil Press (kPa)', data: run.map(r => r.oil_press), borderColor: colors.purple, borderWidth: 2.5, tension: 0.3, pointRadius: 0 },
+            { label: 'Fuel Press (kPa)', data: run.map(r => r.fuel_press), borderColor: colors.blue, borderWidth: 2, borderDash: [4,4], tension: 0.3, pointRadius: 0 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'kPa' } } } }
+      });
+
+      // 3. Combustion
+      if (combustionChart) combustionChart.destroy();
+      combustionChart = new Chart(document.getElementById('subCombustionCanvas').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: rpms,
+          datasets: [
+            { label: 'AFR (Air/Fuel)', data: run.map(r => r.afr), borderColor: colors.orange, borderWidth: 2.5, yAxisID: 'y', tension: 0.3, pointRadius: 0 },
+            { label: 'Back Press (kPa)', data: run.map(r => r.back_press), borderColor: colors.gray, borderWidth: 2, yAxisID: 'y1', tension: 0.3, pointRadius: 0 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { type: 'linear', position: 'left', title: { display: true, text: 'AFR' } },
+            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Back Press (kPa)' } }
+          }
+        }
+      });
+
+      // 4. Atmospheric
+      if (atmChart) atmChart.destroy();
+      atmChart = new Chart(document.getElementById('subAtmCanvas').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: rpms,
+          datasets: [
+            { label: 'Atmospheric Press (kPa)', data: run.map(r => r.atm_press), borderColor: colors.indigo, borderWidth: 2.5, tension: 0.3, pointRadius: 0 },
+            { label: 'In Air Press (kPa)', data: run.map(r => r.in_air_press), borderColor: colors.emerald, borderWidth: 2, tension: 0.3, pointRadius: 0 },
+            { label: 'Crank Press (kPa)', data: run.map(r => r.crank_press), borderColor: colors.pink, borderWidth: 2, tension: 0.3, pointRadius: 0 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'kPa' } } } }
+      });
+    }
+
+    function exportCurrentTableToCSV() {
+      const rows = document.querySelectorAll('#dataTable tr');
+      let csv = [];
+      rows.forEach(r => {
+        const cols = r.querySelectorAll('th, td');
+        const rowData = [];
+        cols.forEach(c => rowData.push('"' + c.innerText.replace(/"/g, '""') + '"'));
+        csv.push(rowData.join(','));
+      });
+      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'engine_test_bench_data_corrected.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
